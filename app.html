@@ -831,9 +831,8 @@ const defaultState = {
   },
   food: {
     healthyMeal: { label:'🥗 Healthy meal', count:0, good:true, note:'Protein, fiber, real food, or something steady.' },
-    healthySnack: { label:'🍎 Healthy snack / fruit', count:0, good:true, note:'Fruit, yogurt, nuts, or an energy-giving snack.' },
-    junkFood: { label:'🍟 I ate something bad', count:0, good:false, note:'Click without drama. The ugliness is just a speed bump.' },
-    water: { label:'🍵 Water / tea instead of grazing', count:0, good:true, note:'A small reset when you want to snack out of boredom.' }
+    healthySnack: { label:'🍎 Healthy snack', count:0, good:true, note:'Something that gives energy instead of stealing it.' },
+    junkFood: { label:'🍟 I ate something bad', count:0, good:false, note:'Click without drama. The ugliness is just a speed bump.' }
   },
   habits: {
     wakeBefore10: { label:'🌤️ Woke before 10 AM', status:null, note:'A clean start counts.' },
@@ -1049,18 +1048,18 @@ function snapshotCurrentDay(){
   const socialOpens = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.opens || 0), 0);
 
   const healthyMeals = state.food.healthyMeal.count;
-  const healthySnack = state.food.healthySnack.count;
+  const healthySnack = state.food.healthySnack ? state.food.healthySnack.count : 0;
   const badFood = state.food.junkFood.count;
-  const water = state.food.water.count;
+  const water = 0;
 
-  const healthyEatingScore = Math.max(0, healthyMeals + healthySnack + water - badFood);
+  const healthyEatingScore = Math.max(0, healthyMeals + healthySnack - badFood);
 
   const habitScore = Object.entries(state.habits).reduce((sum, [key, item]) => {
     if ('status' in item) return sum + (item.status === 'yes' ? 1 : 0);
     return sum + ((item.count || 0) > 0 ? 1 : 0);
   }, 0);
 
-  const goodActions = healthyMeals + healthySnack + water + habitScore;
+  const goodActions = healthyMeals + healthySnack + habitScore;
   const badActions = socialOpens + badFood;
 
   return {
@@ -1161,7 +1160,15 @@ function renderProductive(){
 
     d.innerHTML = `
       <div class="card-title">${t.label}</div>
-      <div class="card-note">Start when focused. Stop when attention leaves.</div>
+      <div class="card-note">
+        ${
+          key === 'work' ? 'Hard things now so life becomes easier later.'
+          : key === 'reading' ? 'Reading one good article is still legal.'
+          : key === 'learning' ? 'Your brain likes novelty. Give it the good kind.'
+          : key === 'projects' ? 'Tiny progress compounds embarrassingly fast.'
+          : 'The socially acceptable form of staring at shapes for too long.'
+        }
+      </div>
       <div class="time">${formatTime(t.seconds)}</div>
       <div class="controls">
         <button class="${t.running ? 'stop-btn' : 'start-btn'}" onclick="${t.running ? `stopTimer('${key}')` : `startTimer('${key}')`}">
@@ -1189,9 +1196,16 @@ function renderSocial(){
         <div class="social-time">${formatTime(t.seconds)}</div>
       </div>
       <div class="social-meta">
-        ${key === 'linkedin'
-          ? `Opened ${t.opens || 0} times · games don't count!`
-          : `Opened ${t.opens || 0} times · ${t.running ? 'timer running' : 'timer stopped'}`
+        ${
+          key === 'phoneUnlock'
+            ? `Opened ${t.opens || 0} times · "I was just checking something really quick."`
+          : key === 'instagram'
+            ? `Opened ${t.opens || 0} times · reels were invented by demons.`
+          : key === 'linkedin'
+            ? `Opened ${t.opens || 0} times · games don't count!`
+          : key === 'twitter'
+            ? `Opened ${t.opens || 0} times · the discourse continues without you.`
+          : `Opened ${t.opens || 0} times · infinite scroll, different font.`
         }
       </div>
       <div class="social-controls">
@@ -1210,6 +1224,8 @@ function renderFood(){
   c.innerHTML = '';
 
   Object.entries(state.food).forEach(([key,item]) => {
+    if (key === 'water') return;
+    if (key === 'water') return;
     const d = document.createElement('div');
     d.className = 'food-card';
 
@@ -1278,7 +1294,7 @@ function renderHabits(){
           <div class="card-title">${item.label}</div>
           <div class="card-note">${item.note}</div>
           <button class="good-button" onclick="incrementHabit('${key}')">
-            🌸 Log habit · ${item.count || 0}
+            🌸 Log · ${item.count || 0}
           </button>
         </div>
       `;

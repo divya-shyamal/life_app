@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intentional Day Tracker</title>
+  <style>
+    * { box-sizing: border-box; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    :root {
+      --bg: #fff2f7;
+      --ink: #2b1821;
+      --muted: #815668;
+      --card: #ffffff;
+      --line: #f0c7d8;
+      --pink-soft: #ffe1ec;
+      --good: #e8f8df;
+      --good-border: #b7df9f;
+      --good-text: #205326;
+      --bad: #4b0d18;
+      --bad-hover: #35070f;
+      --bad-text: #ffe6ec;
+      --shadow: 0 14px 35px rgba(166, 71, 110, 0.10);
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, #ffd6e5 0, transparent 34%),
+        linear-gradient(135deg, #fff2f7 0%, #fff9fb 55%, #ffe5ef 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1120px; margin: 0 auto; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(36px, 6vw, 64px);
+      line-height: 0.95;
+      letter-spacing: -2px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 780px;
+      line-height: 1.55;
+      margin: 16px 0 24px;
+      font-size: 16px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    button { cursor: pointer; border: 0; transition: 0.15s ease; }
+
+    .utility-btn {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      padding: 11px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      box-shadow: var(--shadow);
+    }
+
+    .danger-btn {
+      background: #f4d6df;
+      border-color: #df9cb8;
+      color: #5c1a31;
+    }
+
+    .rings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .ring-card {
+      background: rgba(255,255,255,0.86);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 150px;
+    }
+
+    .ring {
+      width: 108px;
+      height: 108px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      background: conic-gradient(#ddd 0deg, #f7dce7 0deg);
+      transition: background 0.25s ease;
+    }
+
+    .ring-inner {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: #fff9fb;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px solid #f0c7d8;
+      padding: 6px;
+    }
+
+    .ring-value {
+      font-size: 18px;
+      font-weight: 950;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ring-caption {
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+    }
+
+    .ring-title {
+      font-size: 17px;
+      font-weight: 950;
+      margin-bottom: 5px;
+    }
+
+    .ring-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .focus-reward {
+      background: linear-gradient(180deg, #fff8fc, #ffe4ef);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .focus-reward strong { font-size: 18px; }
+
+    .nudge {
+      padding: 18px 20px;
+      border-radius: 24px;
+      margin-bottom: 20px;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.4;
+      box-shadow: var(--shadow);
+    }
+
+    .good-nudge {
+      background: #f3ffe9;
+      border: 1px solid #bfe1a8;
+      color: #284b25;
+    }
+
+    .bad-nudge {
+      background: #f1d1dc;
+      border: 1px solid #c8879f;
+      color: #4b0d18;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-weight: 900;
+      color: #6c334b;
+      box-shadow: 0 8px 20px rgba(166, 71, 110, 0.07);
+    }
+
+    .tab.active {
+      background: #2b1821;
+      color: white;
+      border-color: #2b1821;
+    }
+
+    .panel {
+      display: none;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--line);
+      border-radius: 32px;
+      padding: 22px;
+      min-height: 420px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .panel.active { display: block; }
+
+    .panel.social {
+      background: #dfbdc9;
+      border-color: #b77b92;
+    }
+
+    .panel-title {
+      font-size: 26px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .panel-subtitle {
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+      max-width: 780px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .timer-card, .habit-card, .food-card {
+      background: #fff9fb;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(166, 71, 110, 0.06);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .card-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      min-height: 32px;
+    }
+
+    .time {
+      font-size: 30px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      margin: 12px 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls { display: flex; gap: 8px; }
+
+    .start-btn {
+      flex: 1;
+      background: linear-gradient(180deg, #eaffdc, #bdeaa4);
+      color: #18491f;
+      padding: 10px;
+      border-radius: 13px;
+      font-weight: 950;
+      border: 1px solid #9dcc84;
+    }
+
+    .stop-btn {
+      flex: 1;
+      background: linear-gradient(180deg, #ffdde6, #ee7fa3);
+      color: #5b1026;
+      padding: 10px;
+      border-radius: 13px;
+      font-weight: 950;
+      border: 1px solid #d44d78;
+    }
+
+    .secondary-btn {
+      background: white;
+      border: 1px solid #e3b9cb;
+      padding: 10px;
+      border-radius: 13px;
+      font-weight: 800;
+      color: #6c334b;
+    }
+
+    .social-card {
+      background: #d8aebd;
+      border: 1px solid #99566e;
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+
+    .social-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .social-title {
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .social-time {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 24px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .social-meta {
+      color: #5e263b;
+      font-size: 13px;
+      margin-bottom: 12px;
+      font-weight: 650;
+    }
+
+    .social-controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .ugly-btn {
+      background: var(--bad);
+      color: var(--bad-text);
+      border: 3px solid #210308;
+      border-radius: 2px;
+      font-weight: 950;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      padding: 14px;
+      text-align: left;
+      box-shadow: inset 0 0 18px rgba(0,0,0,0.35);
+      filter: saturate(0.75);
+    }
+
+    .closed-btn {
+      background: linear-gradient(180deg, #f8fff4, #c7f1b2);
+      color: #1d5426;
+      border: 1px solid #9fd889;
+      border-radius: 18px;
+      font-weight: 950;
+      letter-spacing: 0.2px;
+      padding: 14px;
+      text-align: center;
+      font-size: 15px;
+      box-shadow: 0 8px 20px rgba(56, 120, 65, 0.16);
+    }
+
+    .gray-btn {
+      background: #f3d7e2;
+      border: 1px solid #a65a77;
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: #5b1026;
+    }
+
+    .good-button {
+      width: 100%;
+      background: linear-gradient(180deg, #f8fff4, #d6f3c7);
+      border: 1px solid var(--good-border);
+      color: var(--good-text);
+      border-radius: 14px;
+      padding: 11px;
+      font-size: 13px;
+      font-weight: 950;
+      box-shadow: 0 8px 20px rgba(61, 112, 65, 0.10);
+    }
+
+    .bad-button {
+      width: 100%;
+      background: var(--bad);
+      color: var(--bad-text);
+      border: 3px solid #210308;
+      border-radius: 3px;
+      padding: 13px;
+      font-size: 13px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
+      text-align: left;
+      box-shadow: inset 0 0 18px rgba(0,0,0,0.35);
+    }
+
+    .counter {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .yes-no-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .yes-btn, .no-btn {
+      border-radius: 13px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 950;
+      border: 1px solid transparent;
+    }
+
+    .yes-btn {
+      background: #eefbe7;
+      color: #225a2b;
+      border-color: #b9dda4;
+    }
+
+    .no-btn {
+      background: #f3d3df;
+      color: #5b1026;
+      border-color: #cf8ba5;
+    }
+
+    .yes-btn.selected {
+      background: #bdeaa4;
+      box-shadow: inset 0 0 0 2px #5ca345;
+    }
+
+    .no-btn.selected {
+      background: #df7d9d;
+      box-shadow: inset 0 0 0 2px #8e2445;
+    }
+
+    .category {
+      margin-bottom: 22px;
+    }
+
+    .category-title {
+      font-size: 18px;
+      font-weight: 950;
+      margin: 0 0 10px;
+      color: #5b1026;
+    }
+
+    .brain-box {
+      background: #f7d7e2;
+      border: 1px solid #b77b92;
+      border-radius: 24px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+    }
+
+    .brain {
+      width: 92px;
+      height: 92px;
+      border-radius: 30px;
+      display: grid;
+      place-items: center;
+      font-size: 54px;
+      background: #fff2f7;
+      border: 1px solid #e8aec4;
+      transition: filter 0.25s ease, transform 0.25s ease, background 0.25s ease;
+    }
+
+    .brain-bar {
+      height: 12px;
+      background: #f0bdcf;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .brain-fill {
+      height: 100%;
+      width: 0%;
+      background: #4b0d18;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    .history-box {
+      background: #fff9fb;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 16px;
+      margin-top: 18px;
+    }
+
+    .history-row {
+      display: grid;
+      grid-template-columns: 1fr repeat(4, auto);
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid #f2d5e0;
+      font-size: 14px;
+      align-items: center;
+    }
+
+    .history-row:first-of-type { border-top: 0; }
+    .tiny { font-size: 12px; color: var(--muted); }
+
+
+    .section-stop-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 14px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .section-stop-btn {
+      background: linear-gradient(180deg, #ffdde6, #ee7fa3);
+      color: #5b1026;
+      border: 1px solid #d44d78;
+      padding: 11px 14px;
+      border-radius: 999px;
+      font-weight: 950;
+      box-shadow: 0 8px 20px rgba(166, 71, 110, 0.10);
+    }
+
+    .message {
+      display: none;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: #f3d3df;
+      color: #5b1026;
+      border: 1px solid #cf8ba5;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+
+    .water-progress {
+      margin-top: 10px;
+    }
+
+    .water-bar {
+      height: 10px;
+      background: #f0d8e3;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .water-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #9fdcff, #5db8f0);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    .water-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      font-weight: 800;
+    }
+
+
+    .help-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .help-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid var(--line);
+      color: #7a3c56;
+      font-weight: 950;
+      font-size: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      place-items: center;
+    }
+
+    .help-panel {
+      display: none;
+      position: absolute;
+      top: 44px;
+      right: 0;
+      width: min(420px, 90vw);
+      background: rgba(255,255,255,0.98);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 20px 45px rgba(80,20,40,0.16);
+      z-index: 100;
+      text-align: left;
+    }
+
+    .help-panel.show {
+      display: block;
+    }
+
+    .help-panel h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .help-panel p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .help-panel ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .help-panel li {
+      margin-bottom: 8px;
+    }
+
+    .footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 16px; }
+      .social-controls { grid-template-columns: 1fr; }
+      .history-row { grid-template-columns: 1fr 1fr; }
+      .brain-box { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div>
+        <h1>Live your life,<br>not your screen.</h1>
+        <p class="subtitle">A tiny tracker for spending more of your day on things that actually make you feel alive.</p>
+      </div>
+      <div class="top-actions">
+        <div class="help-wrap">
+          <button class="help-btn" onclick="toggleHelp()">i</button>
+
+          <div class="help-panel" id="helpPanel">
+            <h3>🌱 What this app is for</h3>
+
+            <p>
+              This is not meant to be a perfect self-improvement dashboard.
+              The goal is simpler:
+              spend more of your day actually living your life instead of automatically opening your phone.
+            </p>
+
+            <ul>
+              <li><strong>Run one productive timer</strong> whenever you are genuinely focused.</li>
+
+              <li><strong>Press the ugly social button</strong> whenever you open social media or unlock your phone mindlessly. The friction is intentional.</li>
+
+              <li><strong>The rings are meant to be emotional, not precise.</strong> The productive ring filling up should feel satisfying. The social ring filling up should feel slightly uncomfortable.</li>
+
+              <li><strong>Clean-focus trophies</strong> reward uninterrupted focus sessions with no social media breaks.</li>
+
+              <li><strong>The habits are intentionally lightweight.</strong> They are small behaviors that tend to make the rest of the day easier.</li>
+
+              <li><strong>Do not obsess over optimization.</strong> The point is awareness and momentum, not perfection.</li>
+            </ul>
+          </div>
+        </div>
+
+        <button class="utility-btn" onclick="exportStats()">📤 Export Stats</button>
+        <button class="utility-btn danger-btn" onclick="resetDay()">🌙 Reset Today</button>
+      </div>
+    </div>
+
+    <div class="rings">
+      <div class="ring-card">
+        <div class="ring" id="productiveRing"><div class="ring-inner"><div><div class="ring-value" id="productiveRingValue">0%</div><div class="ring-caption">4 hr goal</div></div></div></div>
+        <div>
+          <div class="ring-title">💻 Productive Activity</div>
+          <div class="ring-note" id="productiveRingNote">Fill the ring with 4 hours of focused work, reading, learning, projects, or puzzles.</div>
+        </div>
+      </div>
+
+      <div class="ring-card">
+        <div class="ring" id="socialRing"><div class="ring-inner"><div><div class="ring-value" id="socialRingValue">0%</div><div class="ring-caption">45 min cap</div></div></div></div>
+        <div>
+          <div class="ring-title">📱 Social Media</div>
+          <div class="ring-note" id="socialRingNote">This ring getting full is bad. Keep it tiny.</div>
+        </div>
+      </div>
+
+      <div class="ring-card">
+        <div class="ring" id="healthyEatingRing"><div class="ring-inner"><div><div class="ring-value" id="healthyEatingRingValue">0/3</div><div class="ring-caption">food</div></div></div></div>
+        <div>
+          <div class="ring-title">🥗 Healthy Eating</div>
+          <div class="ring-note" id="healthyEatingRingNote">Goal: 3 helpful food choices. Healthy meals/snacks count up; junk food pulls it down.</div>
+        </div>
+      </div>
+
+      <div class="ring-card">
+        <div class="ring" id="habitRing"><div class="ring-inner"><div><div class="ring-value" id="habitRingValue">0/9</div><div class="ring-caption">habits</div></div></div></div>
+        <div>
+          <div class="ring-title">🌱 Daily Habits</div>
+          <div class="ring-note" id="habitRingNote">A simple progress ring for the habits that protect the day.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="focus-reward">
+      <strong id="focusRewardTitle">🏆 Clean-focus trophies: 0</strong>
+      <div class="ring-note" id="focusRewardNote">Automatic trophies appear here after clean focus sessions: 30 min = 🌸, 60 = ✨, 90 = 💎, 120+ = 👑. Social breaks the session.</div>
+      <div id="focusTrophyCase" style="font-size:28px; margin-top:8px;"></div>
+    </div>
+
+    <div class="nudge good-nudge" id="nudge">🌸 Clean slate. Start with one useful timer.</div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('productive', this)">💻 Productive Time</button>
+      <button class="tab" onclick="showTab('social', this)">📱 Social Media</button>
+      <button class="tab" onclick="showTab('food', this)">🍽️ Food</button>
+      <button class="tab" onclick="showTab('habits', this)">🌱 Good Habits</button>
+      <button class="tab" onclick="showTab('memory', this)">🧠 Memory</button>
+    </div>
+
+    <section class="panel active" id="productivePanel">
+      <div class="panel-title">💻 Productive time</div>
+      <div class="panel-subtitle">Run one stopwatch when you are actively doing the thing. The green button starts. The red button stops.</div>
+      <div class="section-stop-row">
+        <button class="section-stop-btn" onclick="stopCurrentProductive()">🛑 Stop current productive timer</button>
+      </div>
+      <div class="message" id="productiveMessage"></div>
+      <div class="grid" id="productiveTimers"></div>
+    </section>
+
+    <section class="panel social" id="socialPanel">
+      <div class="panel-title">📱 Social media</div>
+      <div class="panel-subtitle">Feed the rectangle? Press the ugly button. Escape the rectangle? Press the happy button.</div>
+      <div class="section-stop-row">
+        <button class="section-stop-btn" onclick="stopCurrentSocial()">😊 Stop current social timer</button>
+      </div>
+      <div class="message" id="socialMessage"></div>
+      <div class="brain-box">
+        <div class="brain" id="brainIcon">🧠</div>
+        <div>
+          <div class="panel-title" style="font-size: 20px; margin-bottom: 2px;">Mind freshness</div>
+          <div class="panel-subtitle" id="brainNote" style="margin-bottom: 0;">Fresh brain. Keep it this way.</div>
+          <div class="brain-bar"><div class="brain-fill" id="brainFill"></div></div>
+        </div>
+      </div>
+      <div id="socialTimers"></div>
+    </section>
+
+    <section class="panel" id="foodPanel">
+      <div class="panel-title">🍽️ Food</div>
+      <div class="panel-subtitle">Not a calorie tracker. Just a quick signal: did this choice help future-you or sabotage future-you?</div>
+      <div class="grid" id="foodButtons"></div>
+    </section>
+
+    <section class="panel" id="habitsPanel">
+      <div class="panel-title">🌱 Good habits</div>
+      <div class="panel-subtitle">Tiny votes for the kind of day you want.</div>
+      <div id="habitSections"></div>
+    </section>
+
+    <section class="panel" id="memoryPanel">
+      <div class="panel-title">🧠 Memory</div>
+      <div class="panel-subtitle">Past daily snapshots appear here when you reset the day. Export before clearing browser data.</div>
+      <div class="history-box" id="historyBox"></div>
+    </section>
+  </div>
+
+<script>
+const STORAGE_KEY = 'intentional-day-tracker-v4';
+
+function todayString(){ return new Date().toISOString().slice(0,10); }
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+const defaultState = {
+  date: todayString(),
+  history: [],
+  rewards: { focusSessions: 0, lastSessionTrophy: '' },
+  timers: {
+    work: { label:'💻 Deep work', seconds:0, running:false },
+    reading: { label:'📖 Article reading', seconds:0, running:false },
+    learning: { label:'🧠 Side learning', seconds:0, running:false },
+    projects: { label:'🛠️ Side project building', seconds:0, running:false },
+    puzzles: { label:'🧩 Puzzles', seconds:0, running:false },
+    phoneUnlock: { label:'📲 Opened phone', seconds:0, running:false, opens:0 },
+    instagram: { label:'📸 Instagram', seconds:0, running:false, opens:0 },
+    linkedin: { label:'💼 LinkedIn', seconds:0, running:false, opens:0 },
+    twitter: { label:'🐦 Twitter / X', seconds:0, running:false, opens:0 },
+    otherSocial: { label:'🌀 Other social media', seconds:0, running:false, opens:0 }
+  },
+  food: {
+    healthyMeal: { label:'🥗 Healthy meal', count:0, good:true, note:'Protein, fiber, real food, or something steady.' },
+    healthySnack: { label:'🍎 Healthy snack / fruit', count:0, good:true, note:'Fruit, yogurt, nuts, or an energy-giving snack.' },
+    junkFood: { label:'🍟 I ate something bad', count:0, good:false, note:'Click without drama. The ugliness is just a speed bump.' },
+    water: { label:'🍵 Water / tea instead of grazing', count:0, good:true, note:'A small reset when you want to snack out of boredom.' }
+  },
+  habits: {
+    wakeBefore10: { label:'🌤️ Woke before 10 AM', status:null, note:'A clean start counts.' },
+    sleepBefore1: { label:'🌙 Slept before 1 AM', status:null, note:'Protect tomorrow before it starts.' },
+    sleepEightNine: { label:'😴 Slept 8–9 hours', status:null, note:'Enough sleep to actually be a person.' },
+    noPhoneBedWake: { label:'📵 No phone at wake/bed', status:null, note:'Protect the bookends.' },
+    poopNoPhone: { label:'🚽 Pooped without phone', status:null, note:'A forgotten ancient human skill.' },
+    exercise: { label:'🏃 Exercised', status:null, note:'Walk, gym, yoga, sport.' },
+    waterCup: { label:'💧 Water', count:0, note:'Tiny hydration wins add up.' },
+    outside: { label:'🌳 Went outside', count:0, note:'Light and air reset.' },
+    tidySpace: { label:'🧺 Tidied space', count:0, note:'Cleaning, dishes, laundry all count.' }
+  }
+};
+
+let state = loadState();
+const productiveKeys = ['work','reading','learning','projects','puzzles'];
+const socialKeys = ['phoneUnlock','instagram','linkedin','twitter','otherSocial'];
+
+const habitCategories = [
+  { title: 'Sleep + phone hygiene', keys: ['wakeBefore10','sleepBefore1','sleepEightNine','noPhoneBedWake','poopNoPhone'] },
+  { title: 'Body basics', keys: ['exercise','waterCup','outside'] },
+  { title: 'Environment', keys: ['tidySpace'] }
+];
+
+function loadState(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!saved) return clone(defaultState);
+    return mergeDefaults(saved, clone(defaultState));
+  } catch {
+    return clone(defaultState);
+  }
+}
+
+function mergeDefaults(saved, defaults){
+  return {
+    ...defaults,
+    ...saved,
+    rewards: { ...defaults.rewards, ...(saved.rewards || {}) },
+    timers: { ...defaults.timers, ...(saved.timers || {}) },
+    food: { ...defaults.food, ...(saved.food || {}) },
+    habits: { ...defaults.habits, ...(saved.habits || {}) },
+    history: saved.history || []
+  };
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function formatTime(seconds){
+  const h = Math.floor(seconds/3600);
+  const m = Math.floor((seconds%3600)/60);
+  const s = seconds%60;
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+
+
+function showMessage(id, text){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function getRunningKey(keys){
+  return keys.find(key => state.timers[key] && state.timers[key].running);
+}
+
+function stopCurrentProductive(){
+  const runningKey = getRunningKey(productiveKeys);
+  if (!runningKey) {
+    showMessage('productiveMessage', 'No productive timer is running.');
+    return;
+  }
+  stopTimer(runningKey);
+}
+
+function stopCurrentSocial(){
+  const runningKey = getRunningKey(socialKeys);
+  if (!runningKey) {
+    showMessage('socialMessage', 'No social timer is running.');
+    return;
+  }
+  state.timers[runningKey].running = false;
+  render();
+  save();
+}
+
+
+function toggleHelp(){
+  const panel = document.getElementById('helpPanel');
+  panel.classList.toggle('show');
+}
+
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.help-wrap');
+  const panel = document.getElementById('helpPanel');
+
+  if (!wrap.contains(e.target)) {
+    panel.classList.remove('show');
+  }
+});
+
+function showTab(name, button){
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  button.classList.add('active');
+  document.getElementById(name + 'Panel').classList.add('active');
+}
+
+function startTimer(key){
+  const alreadyRunning = Object.keys(state.timers).find(timerKey => state.timers[timerKey].running && timerKey !== key);
+  if (alreadyRunning) {
+    const msg = `You already have "${state.timers[alreadyRunning].label.replace(/^[^\w]+\s*/, '')}" running. Stop it before starting another timer.`;
+    showMessage(productiveKeys.includes(key) ? 'productiveMessage' : 'socialMessage', msg);
+    return;
+  }
+
+  const timer = state.timers[key];
+  timer.running = true;
+  if (productiveKeys.includes(key)) {
+    timer.sessionStartSeconds = timer.seconds;
+    timer.sessionClean = !socialKeys.some(socialKey => state.timers[socialKey].running);
+  }
+  render();
+  save();
+}
+
+function stopTimer(key){
+  const timer = state.timers[key];
+  if (productiveKeys.includes(key) && timer.running) {
+    const startSeconds = timer.sessionStartSeconds ?? timer.seconds;
+    const sessionLength = timer.seconds - startSeconds;
+    const clean = timer.sessionClean !== false && !socialKeys.some(socialKey => state.timers[socialKey].running);
+
+    if (sessionLength >= 1800 && clean) {
+      const blocks = Math.floor(sessionLength / 1800);
+      const rewardsEarned = Math.min(10, (blocks * (blocks + 1)) / 2);
+      state.rewards.focusSessions = (state.rewards.focusSessions || 0) + rewardsEarned;
+      state.rewards.lastSessionTrophy = blocks >= 4 ? '👑' : blocks >= 3 ? '💎' : blocks >= 2 ? '✨' : '🌸';
+    }
+  }
+
+  timer.running = false;
+  render();
+  save();
+}
+
+function resetTimer(key){
+  const timer = state.timers[key];
+  timer.seconds = 0;
+  timer.running = false;
+  timer.sessionStartSeconds = 0;
+  timer.sessionClean = true;
+  if ('opens' in timer) timer.opens = 0;
+  render();
+  save();
+}
+
+function socialButton(key){
+  const timer = state.timers[key];
+
+  if (timer.running) {
+    timer.running = false;
+    render();
+    save();
+    return;
+  }
+
+  const alreadyRunning = Object.keys(state.timers).find(timerKey => state.timers[timerKey].running && timerKey !== key);
+  if (alreadyRunning) {
+    const msg = `You already have "${state.timers[alreadyRunning].label.replace(/^[^\w]+\s*/, '')}" running. Stop it before starting another timer.`;
+    showMessage('socialMessage', msg);
+    return;
+  }
+
+  timer.opens = (timer.opens || 0) + 1;
+  timer.running = true;
+  productiveKeys.forEach(productiveKey => {
+    if (state.timers[productiveKey].running) {
+      state.timers[productiveKey].sessionClean = false;
+    }
+  });
+
+  render();
+  save();
+}
+
+function incrementFood(key){
+  state.food[key].count += 1;
+  render();
+  save();
+}
+
+function incrementHabit(key){
+  state.habits[key].count = (state.habits[key].count || 0) + 1;
+  render();
+  save();
+}
+
+function setHabitStatus(key, status){
+  state.habits[key].status = status;
+  render();
+  save();
+}
+
+function snapshotCurrentDay(){
+  const productiveSeconds = productiveKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
+  const socialSeconds = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
+  const socialOpens = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.opens || 0), 0);
+
+  const healthyMeals = state.food.healthyMeal.count;
+  const healthySnack = state.food.healthySnack.count;
+  const badFood = state.food.junkFood.count;
+  const water = state.food.water.count;
+
+  const healthyEatingScore = Math.max(0, healthyMeals + healthySnack + water - badFood);
+
+  const habitScore = Object.entries(state.habits).reduce((sum, [key, item]) => {
+    if ('status' in item) return sum + (item.status === 'yes' ? 1 : 0);
+    return sum + ((item.count || 0) > 0 ? 1 : 0);
+  }, 0);
+
+  const goodActions = healthyMeals + healthySnack + water + habitScore;
+  const badActions = socialOpens + badFood;
+
+  return {
+    date: state.date,
+    productiveSeconds,
+    socialSeconds,
+    socialOpens,
+    healthyMeals,
+    healthySnack,
+    badFood,
+    water,
+    healthyEatingScore,
+    habitScore,
+    goodActions,
+    badActions,
+    timers: clone(state.timers),
+    food: clone(state.food),
+    habitDetails: clone(state.habits),
+    rewards: clone(state.rewards)
+  };
+}
+
+function resetDay(){
+  const snap = snapshotCurrentDay();
+  const hadActivity = snap.productiveSeconds || snap.socialSeconds || snap.goodActions || snap.badActions;
+  const oldHistory = state.history || [];
+  state = clone(defaultState);
+  state.date = todayString();
+  state.history = hadActivity ? [snap, ...oldHistory].slice(0, 60) : oldHistory;
+  render();
+  save();
+}
+
+function exportStats(){
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    currentDay: snapshotCurrentDay(),
+    history: state.history || []
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `intentional-day-stats-${todayString()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function colorMixRedGreen(progress){
+  const p = Math.max(0, Math.min(1, progress));
+  const r = Math.round(200 - 120 * p);
+  const g = Math.round(70 + 145 * p);
+  const b = Math.round(95 - 55 * p);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function colorMixGreenRed(progress){
+  const p = Math.max(0, Math.min(1, progress));
+  const r = Math.round(70 + 160 * p);
+  const g = Math.round(175 - 120 * p);
+  const b = Math.round(90 - 60 * p);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function setRing(id, progress, color, remainderColor = '#f7dce7'){
+  const degrees = Math.max(0, Math.min(1, progress)) * 360;
+  document.getElementById(id).style.background = `conic-gradient(${color} ${degrees}deg, ${remainderColor} ${degrees}deg)`;
+}
+
+function renderBrain(socialSeconds){
+  const cap = 45 * 60;
+  const p = Math.max(0, Math.min(1, socialSeconds / cap));
+  const brain = document.getElementById('brainIcon');
+  const note = document.getElementById('brainNote');
+
+  document.getElementById('brainFill').style.width = Math.round(p * 100) + '%';
+  brain.style.filter = `grayscale(${p * 0.85}) contrast(${1 + p * 0.75}) brightness(${1 - p * 0.28})`;
+  brain.style.background = p > 0.8 ? '#4b0d18' : p > 0.5 ? '#b46b80' : '#fff2f7';
+  brain.style.transform = `rotate(${p * 8 - 4}deg) scale(${1 - p * 0.08})`;
+
+  if (p < 0.25) note.textContent = 'Fresh brain. Keep it this way.';
+  else if (p < 0.5) note.textContent = 'Slightly marinated brain. Still recoverable.';
+  else if (p < 0.8) note.textContent = 'Mind is getting noisy. Consider fleeing the feed.';
+  else note.textContent = 'Mind is getting noisy. Consider stepping away for a bit.';
+}
+
+function renderProductive(){
+  const c = document.getElementById('productiveTimers');
+  c.innerHTML = '';
+
+  productiveKeys.forEach(key => {
+    const t = state.timers[key];
+    const d = document.createElement('div');
+    d.className = 'timer-card';
+
+    d.innerHTML = `
+      <div class="card-title">${t.label}</div>
+      <div class="card-note">Start when focused. Stop when attention leaves.</div>
+      <div class="time">${formatTime(t.seconds)}</div>
+      <div class="controls">
+        <button class="${t.running ? 'stop-btn' : 'start-btn'}" onclick="${t.running ? `stopTimer('${key}')` : `startTimer('${key}')`}">
+          ${t.running ? '🛑 Stop' : '✅ Start'}
+        </button>
+      </div>
+    `;
+
+    c.appendChild(d);
+  });
+}
+
+function renderSocial(){
+  const c = document.getElementById('socialTimers');
+  c.innerHTML = '';
+
+  socialKeys.forEach(key => {
+    const t = state.timers[key];
+    const d = document.createElement('div');
+    d.className = 'social-card';
+
+    d.innerHTML = `
+      <div class="social-header">
+        <div class="social-title">${t.label}</div>
+        <div class="social-time">${formatTime(t.seconds)}</div>
+      </div>
+      <div class="social-meta">
+        ${key === 'linkedin'
+          ? `Opened ${t.opens || 0} times · games don't count!`
+          : `Opened ${t.opens || 0} times · ${t.running ? 'timer running' : 'timer stopped'}`
+        }
+      </div>
+      <div class="social-controls">
+        <button class="${t.running ? 'closed-btn' : 'ugly-btn'}" onclick="socialButton('${key}')">
+          ${t.running ? '😊 I closed this' : '🧟 I opened this'}
+        </button>
+      </div>
+    `;
+
+    c.appendChild(d);
+  });
+}
+
+function renderFood(){
+  const c = document.getElementById('foodButtons');
+  c.innerHTML = '';
+
+  Object.entries(state.food).forEach(([key,item]) => {
+    const d = document.createElement('div');
+    d.className = 'food-card';
+
+    d.innerHTML = `
+      <div class="card-title">${item.label}</div>
+      <div class="card-note">${item.note}</div>
+      <button class="${item.good ? 'good-button' : 'bad-button'}" onclick="incrementFood('${key}')">
+        ${item.good ? '🌸 Log good choice' : '🧟 I did this'}
+      </button>
+      <div class="counter">${item.count}</div>
+    `;
+
+    c.appendChild(d);
+  });
+}
+
+function renderHabits(){
+  const c = document.getElementById('habitSections');
+  c.innerHTML = '';
+
+  habitCategories.forEach(category => {
+    const section = document.createElement('div');
+    section.className = 'category';
+
+    const cards = category.keys.map(key => {
+      const item = state.habits[key];
+      if (!item) return '';
+
+      const isBinary = 'status' in item;
+
+      if (isBinary) {
+        return `
+          <div class="habit-card">
+            <div class="card-title">${item.label}</div>
+            <div class="card-note">${item.note}</div>
+            <div class="yes-no-row">
+              <button class="yes-btn ${item.status === 'yes' ? 'selected' : ''}" onclick="setHabitStatus('${key}', 'yes')">✅ Yes</button>
+              <button class="no-btn ${item.status === 'no' ? 'selected' : ''}" onclick="setHabitStatus('${key}', 'no')">✖️ No</button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (key === 'waterCup') {
+        const cups = item.count || 0;
+        const pct = Math.min(100, (cups / 8) * 100);
+
+        return `
+          <div class="habit-card">
+            <div class="card-title">${item.label}</div>
+            <div class="card-note">${item.note}</div>
+            <button class="good-button" onclick="incrementHabit('${key}')">💧 +1 cup</button>
+
+            <div class="water-progress">
+              <div class="water-bar">
+                <div class="water-fill" style="width:${pct}%"></div>
+              </div>
+              <div class="water-label">${cups}/8 cups</div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="habit-card">
+          <div class="card-title">${item.label}</div>
+          <div class="card-note">${item.note}</div>
+          <button class="good-button" onclick="incrementHabit('${key}')">
+            🌸 Log habit · ${item.count || 0}
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    section.innerHTML = `
+      <h3 class="category-title">${category.title}</h3>
+      <div class="grid">${cards}</div>
+    `;
+
+    c.appendChild(section);
+  });
+}
+
+function renderStats(){
+  const snap = snapshotCurrentDay();
+
+  const productiveGoal = 4 * 60 * 60;
+  const socialCap = 45 * 60;
+  const productiveProgress = snap.productiveSeconds / productiveGoal;
+  const socialProgress = snap.socialSeconds / socialCap;
+  const healthyEatingProgress = Math.max(0, Math.min(1, snap.healthyEatingScore / 3));
+  const habitProgress = Math.max(0, Math.min(1, snap.habitScore / 9));
+
+  setRing('productiveRing', productiveProgress, colorMixRedGreen(productiveProgress));
+  setRing('socialRing', socialProgress, colorMixGreenRed(socialProgress));
+  setRing('healthyEatingRing', healthyEatingProgress, colorMixRedGreen(healthyEatingProgress));
+  setRing('habitRing', habitProgress, colorMixRedGreen(habitProgress));
+
+  document.getElementById('productiveRingValue').textContent = Math.min(100, Math.floor(productiveProgress * 100)) + '%';
+  document.getElementById('socialRingValue').textContent = Math.min(100, Math.floor(socialProgress * 100)) + '%';
+  document.getElementById('healthyEatingRingValue').textContent = `${snap.healthyEatingScore}/3`;
+  document.getElementById('habitRingValue').textContent = `${snap.habitScore}/9`;
+
+  const productiveLeft = Math.max(0, productiveGoal - snap.productiveSeconds);
+  const socialLeft = Math.max(0, socialCap - snap.socialSeconds);
+
+  document.getElementById('productiveRingNote').textContent =
+    productiveProgress >= 1 ? 'Full ring. Four focused hours reached.' : `${formatTime(productiveLeft)} left to reach 4 focused hours.`;
+
+  document.getElementById('socialRingNote').textContent =
+    socialProgress >= 1 ? 'Cap hit. This ring being full is the bad ending.' : `${formatTime(socialLeft)} left before the 45-minute social cap.`;
+
+  document.getElementById('healthyEatingRingNote').textContent =
+    snap.healthyEatingScore >= 3 ? 'Food ring complete. Helpful choices carried the day.' : `Need ${3 - Math.max(0, snap.healthyEatingScore)} more helpful food choice${3 - Math.max(0, snap.healthyEatingScore) === 1 ? '' : 's'} for today.`;
+
+  document.getElementById('habitRingNote').textContent =
+    snap.habitScore >= 9 ? 'Habit ring complete. Tiny systems did their job.' : `${snap.habitScore}/9 daily habits protected.`;
+
+  renderBrain(snap.socialSeconds);
+
+  document.getElementById('focusRewardTitle').textContent = `🏆 Clean-focus trophies: ${state.rewards.focusSessions || 0}`;
+  const trophyCase = document.getElementById('focusTrophyCase');
+  const count = state.rewards.focusSessions || 0;
+
+  if (count === 0) trophyCase.textContent = '';
+  else if (count < 5) trophyCase.textContent = '🌸'.repeat(count);
+  else if (count < 12) trophyCase.textContent = '🌸🌸🌸🌸 ' + '✨'.repeat(Math.floor((count - 4) / 2));
+  else trophyCase.textContent = '🌸🌸🌸🌸 ✨✨ 💎' + (count >= 20 ? ' 👑' : '');
+
+  const n = document.getElementById('nudge');
+  if (snap.badActions === 0 && snap.productiveSeconds === 0) {
+    n.textContent = '🌸 Clean slate. Start with one useful timer.';
+    n.className = 'nudge good-nudge';
+  } else if (snap.socialSeconds >= socialCap) {
+    n.textContent = '🧟 The social ring is full. Bad ending unlocked. Close the rectangle and do one tiny useful thing.';
+    n.className = 'nudge bad-nudge';
+  } else if (snap.productiveSeconds < snap.socialSeconds) {
+    n.textContent = '🧟 Scroll time is winning. Close the tab, stop the timer, and start one focused block.';
+    n.className = 'nudge bad-nudge';
+  } else {
+    n.textContent = '🌸 Your day has momentum. Protect it.';
+    n.className = 'nudge good-nudge';
+  }
+}
+
+function renderHistory(){
+  const box = document.getElementById('historyBox');
+  const history = state.history || [];
+
+  if (history.length === 0) {
+    box.innerHTML = '<div class="tiny">No past days yet. When you press Reset Today, today’s snapshot will appear here.</div>';
+    return;
+  }
+
+  box.innerHTML = '<div class="label">Recent daily snapshots</div>' + history.slice(0,14).map(day => `
+    <div class="history-row">
+      <strong>${day.date}</strong>
+      <span>Focus ${formatTime(day.productiveSeconds)}</span>
+      <span>Scroll ${formatTime(day.socialSeconds)}</span>
+      <span>Food ${day.healthyEatingScore ?? 0}/3</span>
+      <span>Habits ${day.habitScore ?? 0}/9</span>
+    </div>
+  `).join('');
+}
+
+function render(){
+  renderProductive();
+  renderSocial();
+  renderFood();
+  renderHabits();
+  renderStats();
+  renderHistory();
+}
+
+setInterval(() => {
+  Object.values(state.timers).forEach(timer => {
+    if (timer.running) timer.seconds += 1;
+  });
+  render();
+  save();
+}, 1000);
+
+render();
+save();
+</script>
+</body>
+</html>

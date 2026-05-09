@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adaptive Focus Timer</title>
+<style>
+:root{--pink:#E8A0BF;--pink-light:#F9D5E5;--pink-bg:#FFF0F5;--text:#2e2a2c;--muted:#756b70;--line:#f0cddd}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#fff 0%,var(--pink-bg) 100%);color:var(--text);font-family:Georgia,"Times New Roman",serif;padding:24px}
+main{max-width:980px;margin:0 auto;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:0 12px 34px rgba(232,160,191,.16)}
+h1{font-weight:normal;margin:0 0 6px;font-size:32px}.subtitle{color:var(--muted);margin-bottom:22px}
+.task-grid{display:grid;grid-template-columns:1.8fr .8fr .9fr .8fr;gap:10px;align-items:center;margin-bottom:10px}.header{color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:18px}
+input,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-family:inherit;font-size:16px;background:white;color:var(--text)}
+button{border:1px solid var(--pink);background:white;color:var(--text);border-radius:999px;padding:10px 14px;cursor:pointer;font-family:inherit;font-size:15px}
+button:hover{background:var(--pink-light)}button.primary{background:var(--pink);color:white}button:disabled{opacity:.45;cursor:not-allowed}
+.small-buttons,.controls{display:flex;gap:10px;flex-wrap:wrap}.small-buttons{gap:6px}.panel{border-top:1px solid var(--line);margin-top:24px;padding-top:22px}
+.timer-card{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}#phaseTitle{font-size:30px;margin-bottom:6px}
+#phaseMeta,#phaseNote,#queueNote,.rule,.sound-note{color:var(--muted)}#time{font-size:92px;color:var(--pink);line-height:1;min-width:270px;text-align:right}
+.controls{margin-top:18px}.queue{margin-top:20px;color:var(--muted)}.queue ol{margin-top:8px;padding-left:23px}.rule{font-style:italic;margin-top:16px}.sound-note{margin-top:10px;font-size:14px}
+@media(max-width:760px){.task-grid{grid-template-columns:1fr}.header{display:none}.timer-card{grid-template-columns:1fr}#time{text-align:left;font-size:74px;min-width:0}}
+</style>
+</head>
+<body>
+<main>
+<h1>♡ Adaptive Focus Timer</h1>
+<div class="subtitle">Uses real clock time, so it stays accurate even if Chrome throttles the tab. A soft chime plays when a phase ends.</div>
+<div class="task-grid header"><div>Activity</div><div>Minutes</div><div>Type</div><div>Move</div></div>
+<div id="tasks"></div>
+<div class="controls"><button class="primary" id="buildBtn">Build Timer</button><button id="clearBtn">Clear</button></div>
+<section class="panel">
+<div class="timer-card">
+<div>
+<div id="phaseTitle">No timer built yet</div>
+<div id="phaseMeta">Add tasks above, then press Build Timer.</div>
+<div id="phaseNote"></div>
+<div class="controls">
+<button class="primary" id="startPauseBtn" disabled>Start</button>
+<button id="nextBtn" disabled>Next Phase</button>
+<button id="addBtn" disabled>Add 30 min to current task</button>
+<button id="resetBtn" disabled>Reset Current Phase</button>
+</div>
+<div class="sound-note">Press Start once to enable the chime.</div>
+</div>
+<div id="time">00:00</div>
+</div>
+<div class="queue"><strong>Upcoming</strong><div id="queueNote">Nothing yet.</div><ol id="queueList"></ol></div>
+<div class="rule">Break rule: no feeds, texting, videos, or side projects during short breaks.</div>
+</section>
+</main>
+<script>
+const ROWS=5;
+const tasksDiv=document.getElementById("tasks"),buildBtn=document.getElementById("buildBtn"),clearBtn=document.getElementById("clearBtn"),startPauseBtn=document.getElementById("startPauseBtn"),nextBtn=document.getElementById("nextBtn"),addBtn=document.getElementById("addBtn"),resetBtn=document.getElementById("resetBtn"),phaseTitle=document.getElementById("phaseTitle"),phaseMeta=document.getElementById("phaseMeta"),phaseNote=document.getElementById("phaseNote"),timeEl=document.getElementById("time"),queueList=document.getElementById("queueList"),queueNote=document.getElementById("queueNote");
+let phases=[],current=0,remaining=0,running=false,tickId=null,phaseEndAt=null,audioCtx=null;
+
+function ensureAudio(){if(!audioCtx){audioCtx=new (window.AudioContext||window.webkitAudioContext)()} if(audioCtx.state==="suspended"){audioCtx.resume()}}
+function playChime(){try{ensureAudio();const now=audioCtx.currentTime;[{f:659.25,s:0,d:.18},{f:783.99,s:.16,d:.22},{f:987.77,s:.34,d:.35}].forEach(n=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.setValueAtTime(n.f,now+n.s);g.gain.setValueAtTime(.0001,now+n.s);g.gain.exponentialRampToValueAtTime(.13,now+n.s+.03);g.gain.exponentialRampToValueAtTime(.0001,now+n.s+n.d);o.connect(g);g.connect(audioCtx.destination);o.start(now+n.s);o.stop(now+n.s+n.d+.03)})}catch(e){console.log(e)}}
+
+function makeRows(){tasksDiv.innerHTML="";for(let i=0;i<ROWS;i++){const row=document.createElement("div");row.className="task-grid";row.innerHTML=`<input class="name" placeholder="Activity ${i+1}"><input class="minutes" type="number" min="1" step="1" placeholder="min"><select class="type"><option value="thinking">thinking</option><option value="rote">rote</option></select><div class="small-buttons"><button class="up" type="button">↑</button><button class="down" type="button">↓</button></div>`;tasksDiv.appendChild(row)}attachMoveButtons()}
+function getRows(){return Array.from(tasksDiv.querySelectorAll(".task-grid"))}
+function readRow(row){return{name:row.querySelector(".name").value,minutes:row.querySelector(".minutes").value,type:row.querySelector(".type").value}}
+function writeRow(row,v){row.querySelector(".name").value=v.name;row.querySelector(".minutes").value=v.minutes;row.querySelector(".type").value=v.type}
+function swapRows(a,b){const rows=getRows();if(a<0||b<0||a>=rows.length||b>=rows.length)return;const temp=readRow(rows[a]);writeRow(rows[a],readRow(rows[b]));writeRow(rows[b],temp)}
+function attachMoveButtons(){getRows().forEach((row,i)=>{row.querySelector(".up").addEventListener("click",()=>swapRows(i,i-1));row.querySelector(".down").addEventListener("click",()=>swapRows(i,i+1))})}
+function collectTasks(){return getRows().map(readRow).map((t,i)=>({id:"task-"+i+"-"+Math.random().toString(16).slice(2),name:t.name.trim(),minutes:parseInt(t.minutes,10),type:t.type})).filter(t=>t.name&&Number.isFinite(t.minutes)&&t.minutes>0)}
+function taskToPhases(task){const workBlock=task.type==="thinking"?30:50,innerBreak=task.type==="thinking"?5:10,note=task.type==="thinking"?"Focused thinking. Use your drift pad. Do not switch tasks.":"Rote work. Keep it simple and steady.";let out=[],left=task.minutes,block=1;while(left>0){const mins=Math.min(workBlock,left);out.push({kind:"work",taskId:task.id,title:task.name,minutes:mins,note:note+" Block "+block+"."});left-=mins;block++;if(left>0)out.push({kind:"break",taskId:task.id,title:"Break",minutes:innerBreak,note:"Low-stimulation break. No texting, feeds, videos, or side projects."})}return out}
+function buildPhases(){const tasks=collectTasks();phases=[];tasks.forEach((task,idx)=>{phases.push(...taskToPhases(task));if(idx<tasks.length-1)phases.push({kind:"transition",taskId:"transition-"+idx,title:"Transition Break",minutes:10,note:"Reset before switching tasks."})});current=0;remaining=phases.length?phases[0].minutes*60:0;phaseEndAt=null;running=false;stopTicker(false);enableTimer(phases.length>0);render()}
+function enableTimer(enabled){startPauseBtn.disabled=!enabled;nextBtn.disabled=!enabled;addBtn.disabled=!enabled;resetBtn.disabled=!enabled}
+function format(sec){sec=Math.max(0,Math.ceil(sec));const m=Math.floor(sec/60).toString().padStart(2,"0"),s=(sec%60).toString().padStart(2,"0");return m+":"+s}
+function render(){if(!phases.length){phaseTitle.textContent="No timer built yet";phaseMeta.textContent="Add tasks above, then press Build Timer.";phaseNote.textContent="";timeEl.textContent="00:00";queueList.innerHTML="";queueNote.textContent="Nothing yet.";startPauseBtn.textContent="Start";return}const p=phases[current];phaseTitle.textContent=p.title;phaseMeta.textContent="Phase "+(current+1)+" of "+phases.length+" · "+p.minutes+" min · "+p.kind;phaseNote.textContent=p.note;timeEl.textContent=format(remaining);startPauseBtn.textContent=running?"Pause":"Start";renderQueue()}
+function renderQueue(){queueList.innerHTML="";const upcoming=phases.slice(current+1,current+8);if(!upcoming.length){queueNote.textContent="No upcoming phases.";return}queueNote.textContent="Next phases:";upcoming.forEach(p=>{const li=document.createElement("li");li.textContent=p.title+" — "+p.minutes+" min";queueList.appendChild(li)})}
+function stopTicker(shouldRender=true){if(tickId){clearInterval(tickId);tickId=null}if(shouldRender)render()}
+function pauseTimer(){if(!running)return;remaining=Math.max(0,Math.ceil((phaseEndAt-Date.now())/1000));running=false;phaseEndAt=null;stopTicker(true)}
+function startTimer(){if(!phases.length||running)return;ensureAudio();running=true;phaseEndAt=Date.now()+remaining*1000;render();tickId=setInterval(checkTimer,250);checkTimer()}
+function checkTimer(){if(!running||!phaseEndAt)return;remaining=Math.max(0,Math.ceil((phaseEndAt-Date.now())/1000));if(remaining<=0){playChime();advancePhase()}else render()}
+function advancePhase(){stopTicker(false);running=false;phaseEndAt=null;if(current<phases.length-1){current++;remaining=phases[current].minutes*60;enableTimer(true);render()}else{remaining=0;enableTimer(false);phaseTitle.textContent="Session Complete";phaseMeta.textContent="Done";phaseNote.textContent="Good work. Stop here.";timeEl.textContent="00:00";queueList.innerHTML="";queueNote.textContent="No upcoming phases."}}
+function resetPhase(){if(!phases.length)return;stopTicker(false);running=false;phaseEndAt=null;remaining=phases[current].minutes*60;render()}
+function addThirtyToCurrentTask(){if(!phases.length)return;const p=phases[current];if(p.kind!=="work"){alert("Add 30 minutes only works during a work phase.");return}p.minutes+=30;remaining+=1800;if(running)phaseEndAt+=1800000;render()}
+
+document.addEventListener("visibilitychange",()=>{if(running)checkTimer()});
+window.addEventListener("focus",()=>{if(running)checkTimer()});
+startPauseBtn.addEventListener("click",()=>running?pauseTimer():startTimer());
+nextBtn.addEventListener("click",advancePhase);
+resetBtn.addEventListener("click",resetPhase);
+addBtn.addEventListener("click",addThirtyToCurrentTask);
+buildBtn.addEventListener("click",buildPhases);
+clearBtn.addEventListener("click",()=>{stopTicker(false);phases=[];current=0;remaining=0;running=false;phaseEndAt=null;enableTimer(false);makeRows();render()});
+makeRows();enableTimer(false);render();
+</script>
+</body>
+</html>

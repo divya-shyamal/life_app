@@ -890,6 +890,26 @@ function formatTime(seconds){
   return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
 }
 
+function updateRunningTimer(key){
+  const timer = state.timers[key];
+  if (!timer || !timer.running) return;
+
+  const now = Date.now();
+  const lastTick = timer.lastTick || now;
+  const elapsedSeconds = Math.floor((now - lastTick) / 1000);
+
+  if (elapsedSeconds > 0) {
+    timer.seconds += elapsedSeconds;
+    timer.lastTick = lastTick + elapsedSeconds * 1000;
+  } else {
+    timer.lastTick = lastTick;
+  }
+}
+
+function updateAllRunningTimers(){
+  Object.keys(state.timers).forEach(updateRunningTimer);
+}
+
 
 function showMessage(id, text){
   const el = document.getElementById(id);
@@ -919,7 +939,9 @@ function stopCurrentSocial(){
     showMessage('socialMessage', 'No social timer is running.');
     return;
   }
+  updateRunningTimer(runningKey);
   state.timers[runningKey].running = false;
+  state.timers[runningKey].lastTick = null;
   render();
   save();
 }
@@ -956,6 +978,7 @@ function startTimer(key){
 
   const timer = state.timers[key];
   timer.running = true;
+  timer.lastTick = Date.now();
   if (productiveKeys.includes(key)) {
     timer.sessionStartSeconds = timer.seconds;
     timer.sessionClean = !socialKeys.some(socialKey => state.timers[socialKey].running);
@@ -965,6 +988,7 @@ function startTimer(key){
 }
 
 function stopTimer(key){
+  updateRunningTimer(key);
   const timer = state.timers[key];
   if (productiveKeys.includes(key) && timer.running) {
     const startSeconds = timer.sessionStartSeconds ?? timer.seconds;
@@ -980,6 +1004,7 @@ function stopTimer(key){
   }
 
   timer.running = false;
+  timer.lastTick = null;
   render();
   save();
 }
@@ -990,6 +1015,7 @@ function resetTimer(key){
   timer.running = false;
   timer.sessionStartSeconds = 0;
   timer.sessionClean = true;
+  timer.lastTick = null;
   if ('opens' in timer) timer.opens = 0;
   render();
   save();
@@ -999,7 +1025,9 @@ function socialButton(key){
   const timer = state.timers[key];
 
   if (timer.running) {
+    updateRunningTimer(key);
     timer.running = false;
+    timer.lastTick = null;
     render();
     save();
     return;
@@ -1014,6 +1042,7 @@ function socialButton(key){
 
   timer.opens = (timer.opens || 0) + 1;
   timer.running = true;
+  timer.lastTick = Date.now();
   productiveKeys.forEach(productiveKey => {
     if (state.timers[productiveKey].running) {
       state.timers[productiveKey].sessionClean = false;
@@ -1401,12 +1430,16 @@ function render(){
 }
 
 setInterval(() => {
-  Object.values(state.timers).forEach(timer => {
-    if (timer.running) timer.seconds += 1;
-  });
+  updateAllRunningTimers();
   render();
   save();
 }, 1000);
+
+document.addEventListener('visibilitychange', () => {
+  updateAllRunningTimers();
+  render();
+  save();
+});
 
 render();
 save();

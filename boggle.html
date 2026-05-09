@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boggle</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: Georgia, serif; background: linear-gradient(135deg, #fff7fb, #f8e8f0); color: #3f2734; display: flex; align-items: center; justify-content: center; padding: 24px; user-select: none; }
+    .app { width: min(1120px, 100%); display: grid; grid-template-columns: 1fr 380px; gap: 22px; }
+    .panel { background: rgba(255,255,255,0.88); border: 1px solid #f1bfd3; border-radius: 28px; box-shadow: 0 20px 60px rgba(176,81,125,0.16); padding: 24px; }
+    h1 { margin: 0 0 6px; font-size: 44px; color: #a83f73; letter-spacing: -1px; }
+    .subtitle, .status { margin: 0 0 16px; color: #7b5869; line-height: 1.4; }
+    .status { font-size: 14px; font-weight: 700; }
+    .topbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; }
+    .stat, .mode-toggle { background: #fff0f6; border: 1px solid #efbdd2; border-radius: 999px; padding: 9px 14px; font-weight: 700; color: #8d3561; }
+    .mode-toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+    .mode-toggle input { accent-color: #a83f73; }
+    .board-wrap { position: relative; max-width: 540px; margin: 0 auto; }
+    .board { touch-action: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 auto 18px; border-radius: 28px; padding: 4px; }
+    .board.sprint { animation: sprintShake 0.9s cubic-bezier(.2,.8,.2,1), sprintGlow 1.35s ease; }
+    @keyframes sprintShake { 0%,100%{transform:translateX(0) rotate(0) scale(1)} 8%{transform:translateX(-16px) rotate(-3deg) scale(1.02)} 18%{transform:translateX(16px) rotate(3deg) scale(1.03)} 30%{transform:translateX(-13px) rotate(-2deg) scale(1.02)} 44%{transform:translateX(13px) rotate(2deg) scale(1.025)} 60%{transform:translateX(-8px) rotate(-1deg)} 76%{transform:translateX(8px) rotate(1deg)} }
+    @keyframes sprintGlow { 0%,100%{box-shadow:none} 15%,72%{box-shadow:0 0 0 12px rgba(168,63,115,.18),0 0 42px rgba(168,63,115,.58),0 0 80px rgba(255,182,214,.75); background:rgba(255,240,247,.7)} }
+    .tile { --heat: 0; aspect-ratio: 1; border: 0; border-radius: 22px; background: linear-gradient(145deg, rgba(255,255,255,1), rgba(255,232,242,1)); box-shadow: 0 8px 18px rgba(168,63,115,0.18); color: #7c2854; font-size: clamp(30px, 7vw, 58px); font-weight: 900; cursor: pointer; transition: transform 0.12s, background 0.12s, color 0.12s, box-shadow 0.12s; }
+    .heat-on .tile { background: linear-gradient(145deg, rgba(255,255,255,1), rgba(168,63,115,calc(.08 + var(--heat) * .62))); }
+    .heat-on .tile.high-heat { color: white; text-shadow: 0 1px 4px rgba(60,20,45,.35); }
+    .tile.selected { background: linear-gradient(145deg, #d94d91, #b83e79) !important; color: white; transform: translateY(-3px) scale(1.03); }
+    .tile.flash-good { background: linear-gradient(145deg, #dff8e7, #a8e8bb) !important; color: #24623a; box-shadow: 0 8px 20px rgba(91, 183, 119, 0.28); }
+    .tile.flash-duplicate { background: linear-gradient(145deg, #ffe27a, #f2b705) !important; color: #5d4300; }
+    .tile.flash-bad { background: linear-gradient(145deg, #ff8a8a, #d93434) !important; color: white; }
+    .current-word { display: none; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    button.action { border: 0; border-radius: 999px; background: #a83f73; color: white; font-weight: 800; font-size: 15px; line-height: 1; padding: 14px 22px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 16px rgba(168,63,115,0.22); }
+    button.action.secondary { background: white; color: #a83f73; border: 1px solid #e7acc7; }
+    .message { min-height: 24px; text-align: center; margin-top: 12px; color: #7b5869; font-weight: 700; }
+    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .info-button { width: 38px; height: 38px; border-radius: 999px; border: 1px solid #e7acc7; background: white; color: #a83f73; font-weight: 900; font-size: 18px; cursor: pointer; box-shadow: 0 6px 14px rgba(168,63,115,.14); }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(63,39,52,.28); display: none; align-items: center; justify-content: center; padding: 22px; z-index: 10; }
+    .modal-backdrop.show { display: flex; }
+    .modal { max-width: 560px; background: white; border: 1px solid #f1bfd3; border-radius: 26px; box-shadow: 0 24px 70px rgba(63,39,52,.28); padding: 24px; color: #6f4e60; line-height: 1.45; }
+    .modal h2 { margin: 0 0 12px; color: #a83f73; }
+    .modal ul { padding-left: 20px; }
+    .modal-close { float: right; border: 0; background: #fff0f6; color: #a83f73; border-radius: 999px; padding: 8px 12px; font-weight: 800; cursor: pointer; }
+    .side h2 { margin: 0 0 12px; color: #a83f73; }
+    .rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .ring-card { display: flex; flex-direction: column; align-items: center; gap: 5px; background: #fff7fb; border: 1px solid #f1bfd3; border-radius: 18px; padding: 10px 6px; font-size: 13px; color: #7b5869; font-weight: 700; }
+    .ring { --pct: 0deg; width: 56px; height: 56px; border-radius: 50%; background: conic-gradient(#a83f73 var(--pct), #f3d3e1 0deg); display: grid; place-items: center; }
+    .ring::after { content: attr(data-count); width: 42px; height: 42px; border-radius: 50%; background: white; display: grid; place-items: center; color: #8d3561; font-weight: 900; }
+    .legend { margin-bottom: 20px; }
+    .legend-bar { height: 14px; border-radius: 999px; background: linear-gradient(90deg, rgba(168,63,115,.08), rgba(168,63,115,.70)); border: 1px solid #efbdd2; }
+    .legend-labels { display: flex; justify-content: space-between; font-size: 12px; color: #7b5869; margin-top: 5px; font-weight: 700; }
+    .found-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; max-height: 250px; overflow: auto; }
+    .longest-box { display: none; margin-top: 18px; padding: 14px; border-radius: 18px; background: #fff7fb; border: 1px solid #f1bfd3; color: #6f4e60; }
+    .longest-box.show { display: block; }
+    .longest-box h2 { margin: 0 0 10px; }
+    .longest-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .results-actions { margin-top: 14px; display: flex; justify-content: center; }
+    .word-pill { background: #fff0f6; border: 1px solid #efbdd2; border-radius: 999px; padding: 7px 10px; font-weight: 700; color: #7c2854; }
+    .rules { color: #6f4e60; line-height: 1.45; font-size: 14px; margin-top: 18px; }
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .side { order: -1; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="title-row"><h1>Boggle</h1><button class="info-button" id="infoBtn" aria-label="Game info">i</button></div>
+      <p class="subtitle">Drag through the center of adjacent tiles to make words. Release to submit.</p>
+      <p class="status" id="dictStatus">Loading dictionary...</p>
+      <div class="topbar">
+        <div class="stat">Time: <span id="time">3:00</span></div>
+        <div class="stat">Progress: <span id="score">0%</span></div>
+        <label class="mode-toggle"><input type="checkbox" id="untimedToggle" checked /> Untimed</label>
+        <label class="mode-toggle"><input type="checkbox" id="heatToggle" checked /> Heatmap</label>
+      </div>
+      <div class="board-wrap">
+        <div id="board" class="board heat-on"></div>
+      </div>
+      <div id="currentWord" class="current-word"></div>
+      <div class="controls">
+        <button class="action" id="endGameBtn">End Game</button>
+        <button class="action secondary" id="clearBtn">Clear</button>
+        <button class="action secondary" id="pauseBtn">Pause</button>
+      </div>
+      <div id="message" class="message"></div>
+    </section>
+    <aside class="panel side">
+      <h2>Progress</h2>
+      <div id="rings" class="rings"></div>
+      <div class="legend" id="legend">
+        <h2>Remaining starts</h2>
+        <div class="legend-bar"></div>
+        <div class="legend-labels"><span>fewer remaining</span><span>many remaining</span></div>
+      </div>
+      <h2>Found words</h2>
+      <div id="foundList" class="found-list"></div>
+      <div id="longestBox" class="longest-box">
+        <h2>Longest words</h2>
+        <div id="longestList" class="longest-list"></div>
+        <div class="results-actions"><button class="action" id="resultsNewGameBtn">New Game</button></div>
+      </div>
+      <div class="rules">Find 4 valid words within 10 seconds for a special effect!</div>
+    </aside>
+  </main>
+  <div class="modal-backdrop" id="infoModal">
+    <div class="modal">
+      <button class="modal-close" id="closeInfoBtn">Close</button>
+      <h2>How to play</h2>
+      <ul>
+        <li>Drag through adjacent tiles to form English words. Diagonals are allowed.</li>
+        <li>Each tile can be used at most once in a word.</li>
+        <li>Green means a new valid word, yellow means already found, and red means invalid.</li>
+        <li>Progress is a weighted percentage: more common words count slightly more.</li>
+        <li>The heatmap shows how many remaining valid words start from each tile. Darker tiles have more remaining starts.</li>
+        <li>Find 4 valid words within 10 seconds for a special effect.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const DICE = ["AAEEGN","ABBJOO","ACHOPS","AFFKPS","AOOTTW","CIMOTU","DEILRX","DELRVY","DISTTY","EEGHNW","EEINSU","EHRTVW","EIOSST","ELRTTY","HIMNQU","HLNNRZ"];
+    const WORD_URLS = [
+      "https://raw.githubusercontent.com/fordsfords/moby_words_2/master/common.txt",
+      "https://raw.githubusercontent.com/first20hours/google-10000-english/master/20k.txt",
+      "https://raw.githubusercontent.com/filiph/english_words/master/data/word-freq-top5000.csv",
+      "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    ];
+    const MAIN_DICTIONARY_URL = WORD_URLS[0];
+    const FREQUENCY_WORD_URLS = new Set([WORD_URLS[1], WORD_URLS[2]]);
+    const BAN_WORDS = new Set("aa aal aalii aam aas aba abac abaca abaci aback abacot abacterial abactinal abaft abaka abalone abamp abamps abandonee abapical abas abaser abashless abask abassi abateable abater abators abattis abattoir abaxial abay abba abbacy abbe abbed abbess abbey abbot abbotcy abbozzo abcoulomb abdabs abdal abdat abderian abdest abdicable abdicant abditive abdom abdominocentesis abeam abear abecedary abed abedeigh abel abelite abelmusk abenteric abepithymia aberrance aberrancy abetment abettal abetter abettor abevacuation abfarad abhenry abietic abigail abime abirritant abirritate abirritation abjectness abjoint abjudicate abkar abkary ablach ablepharia ablepsia abluent ablush abmho abnaki abnegator abnet abnormalism abobra abodement aboideau aboil aboma abomasum aboon aborad aboral abord abore aborn abortus abouchement aboulia aboulic abraum abri abrim abrin abrood abrus absaroka abscession abscondence absconsa abscoulomb abscound absenter absinth absit absmho absohm absolvent absonant abterminal abthain abthainrie abubble abulia abulic abuna aburst aburton abusable abusage abutilon abvolt abwat abysm acacin academe acaleph acalycal acantha acanthad acantharia acanthin acanthion acanthite acanthodean acanthodian acanthoid acanthoma acanthous acanthus acapnia acarid acarine acaroid acarus acastus acater acaudal accadian accede accloy accoil accouche accoucheur accumb accumbent accumber accurst accusive accustomation acecaffin acedia aceldama acellular acentric acerae acerata acerate aceratherium acerb acerdol acervate acetabular acetabulum acetal acetamide acetanilid acetarious acetated acetifier acetin acetize acetometer acetose acetosity acetous acetphenetidin acetum acetylize achaean achaetous achage acharnement achate acheilia achene achigan achilary achill achillea achilous acholia acholous achor achroite achromat achromatin achromatism achromatize achromatous achromic achroodextrin achroous achropsia achylia acicula acicular aciculum acidiferous acidimeter acidimetry acidite acidize acidly acidness acidyl acierage acieral acierate aciform aciliate acinaceous acinaciform acinarious aciniform acinose acinous acipenser acisck acequia acmesthesia acneform acnodal acock acocotl acoelomate acoelous acolapissa acology acolous acolyth aconative aconital aconite aconitic aconitin aconitine aconitum acopic acopon acoria acorned acosmism acosmist acosmistic acouasm acoumeter acoumetry acouometer acouchi acquest acquirability acquisite acquittance acracy acrania acrase acrasia acrasiales acrasin acraspedote acridan acridic acridid acrididae acridine acridinium acridity acridly acridness acriflavin acrimoniousness acroamatic acroamatics acroataxia acroatic acroblast acrocarp acrocarpous acrocephalic acrocephaly acroceraunian acroclinium acrocomia acroconidium acrodactylum acrodont acrodrome acrodromous acrogen acrogenous acrolein acrolith acrolithan acromania acromegaly acromelalgia acromial acromicria acromiohumeral acromion acromyodian acromyodous acron acrosarcum acrospire acrospore acroter acroteral acroteric acroterion actinal actinism actinium actinoid actinolite actinology actinomere actinomeric actinomyces actinomycin actinomycose actinomycotic actinophorous actinopod actinopraxis actinopteran actinopterygian actinoscopy actinost actinozoal actinozoan actinula acture acuan acuate acuation aculeate aculeated aculeiform aculeus acushla acutilingual acutiplantar acutish adad adage adagy adance adapa adar adati addax adderbolt adderfish adderwort additament addititious addorsed adductive adeem adelarthrosomatous adelges adelgid adelina adeling adelocodonic adelomorphic adelopod adelops adelphia adelphous adenalgia adenectomy adeniform adenin adenitis adenoidism adenological adenology adenophore adenophorous adenophyllous adenose adenotomic adenyl adermia adermin adessenarian adfected adherer adiabaticity adiaphonon adiaphoral adiaphorism adiaphorist adiaphoristic adiaphorous adinole adipocele adipoceriform adipocerous adipogenic adipoid adipolysis adipolytic adipoma adipomatous adipometer adipsia adipsic adiust adlumidine admedial admensuration administerial administratrix admissibly admittable admittatur admix admixedly admonisher admonishment adnascent adnate adnation adnex adnominal adnoun adolescency adonai adonean adonidin adonis adoor ados adoulie adown adoxaceous adradial adream adreamed adrectal adrenalone adrenin adrenine adrenotropic adrop adscriptitious adsmith adterminal adtevacuation adular adularia adulatress adultness adunc adure adust adustion adward adynamia adynamic adytum adz adze ae aeacus aeaean aecial aecidial aecidioform aecidium aeciospore aecioteliospore aeciotelium aedeagus aedicula aedile aedilian aedilic aedility aefald aegagropila aegagrus aegean aegeriid aegina aeginetan aegirine aegirite aegisthus aeluroid aeneolithic aeneous aenigmatite aeolic aeolipile aeolistic aeolotropy aeolsklavier aeonial aeonist aequoreal aerage aerarian aerate aeration aerator aerenchyma aeric aerides aerification aeriform aerobacter aerobatic aerobatics aerobe aerobiology aerobion aerobiosis aerobiotic aerobious aerobranchiate aerocamera aerocartograph aerocurve aerocyst aerodonetics aerodrome aerodromics aerodyne aerognosy aerogram aerographer aerography aerohydropathy aerohydrous aerolitic aerolithology aerologic aerological aerology aeromancy aerometer aerometry aeronaut aeronef aeroscepsy aerosiderite aerostat aerostatic aerostatics aerostation aerotherapeutics aerotherapy aerotonometer aerotropic aeruginous aerugo aestii aestival aestivate aestivation aethered afar afara afear affa affecter affenpinscher afferent affettuoso affiant affined affirmer affixal afflatus afflux afforce afforest afghan afield afikomen afire aflare aflat afloat aflow afreet afric afrit afterbody afterbrain afterdamp afterdeck aftereye aftergame aftergas aftergrief aftergrowth afterhatch afterhelp afterhend afterhold afterings afterlight aftermark aftermath aftermost afternose afternoontide afteroar afterpast afterpiece afterrake afterrider aftershaft aftersound afterstorm afterstudy aftertan afterthink aftertime afterturn afterwale afterwar afterwhile afterwit afwillite agalactia agalaxy agamic agamid agamist agamoid agamont agamous agamy agapetae agapeti agaric agasp agast achee acherontic agastroneuria agathism agathodaemon agaty agee agelast agene agenesia agenesic agenesis agendum agenize agential agerasia agger aggerate aggerose aggest agglomerant aggrate aggry aggurin agib agilawood agist agistor agla aglance aglauros agley aglimmer aglint aglisten aglobulia aglossal agly aglycon aglyphodont agmatine agnail agnathia agnathic agnathous agnatic agnation agnel agnoetae agnoiology agoniadin agonied agonistarch agonus agpaite agrafe agraphic agravic agrestial agricere agrimony agriology agriotype agrise agrology agrom agrostis agrotechny aguelike agueweed aguish ahankara ahint ahmadi ahmadiya ahmed ahorse ahsan ahtena aichmophobia aidance aidant aidful aidless aiel ailanto aile ailourophile ailurophile ailurophobe ailurophobia ailuropoda ailweed aimak aime aino aioli airan aircheck aircrew airdock airdrome airer airest airfield airfoil airframe airglow airhead airified airily airiness airing airless airlike airliner airlock airman airmark airplane airproof airsick airsickness airward airwards airt airth airtightly airwoman aisling ajaja ajari ajava ajowan akaroa akasa ake akeake akebia akeki akeldama akene aketon akimbo akin aknee akoasm akra akroasis akrochordite aktiebolag al aal ala alabamide alabamine alacha alackaday alacrify alactaga alalia alalite alalonga alalunga alani alanine alantin alaric alarice alastrim alatern alaternus alation alb albacea alban albanens albania albanite albarco albarello albarium albertin albertite albertustaler albescence albescent albetad albi albicans albicant albification albify albinoism albitic albricias alcahest alcaide alcanna alcarraza alcedines alcedo alcelaphine alchemic alchera alcheringa alchimy alcidine alcine alclad alcogel alcoholicity alcoholicity alcoholometer alcoholometric alcoholometry alcoranist alcornoque alcosol alcyonacea alcyonarian alcyone alcyones alcyonic aldehol aldeia aldern aldine aldol aldose aleak aleatory alecithal aleconner alecost alectoria alectrion alectoromachy alectryon alectryomancy alee alehoof aleikum alembic alencon aleph alertness alethiology aleuromancy aleurometer aleuron aleurone alevin alexander alexandrina alexandrite alexia alexian alexipharmic alferes alfridaric alga algaroba algedonic algid algidity algin alginic algist algogenic algolagnia algology algometrical algometry algonkian algonquin algor algorism algraphy alhambra alibility alicant alicoche alidade alienage alienee alienism alienor aliform aligerous alighten alinement aliped aliquant aliquot alish alisma alismaceous aliso alitrunk aliveness aliyah alk alka alkahest alkalescency alkalic alkalify alkalimeter alkalimetry alkalinize alkalizable alkaloid alkamine alkanet alkanna alkeran alkide alkoran allalinite allantoic allantoin allantois allassotonic allecret allee allegorization allegorizer allegresse allegretto allelomorph allelomorphic allelotropism alleluia allemande allene allentando allerion alleviator alleviatory alleyed alliaceous alligate allision alliteral allium allobar allobroges allochiral allochroic allochroite allochromatic allochroous allocinnamic alloclasite allocryptic allodelphite allodialist allodium allogamous allogamy allogene allogenic allograph allomerism allomerous allometry allomorph allomorphism allonge allonym allopathic allopathist allopathy allophane allophanic allophone allophyle alloplasmatic alloplast alloploidy allopolyploid allopsychic allorrhyhmia allorrhythmic allosaur allose allosome allosteric allot allotelluric allotheism allotheria allotriodont allotriomorphic allotropism allotropy allotter allottee alloxan allseed allthing allthorn allurer allurement alluvia alluvion allyl almah alman almandin almandite alme almemar almique almon almoner almous almud almuce almuten alnager alnage alnus aloadae alodial alodium aloed aloes aloesol aloetic alogical alogy alonso aloofly aloofness alop alopathic alopecist alopecoid alopecia alose alouatte alow aloxite alpaca alpeen alpenhorn alpenstock alphaea alphabetics alphabetiform alphabetist alphabetization alphabetizer alphol alquier already alright alsatian alshain alsike alsoon altaian altaic altaid altair altarage altarist altarpiece alterability alterant altern alternacy altiplanic altissimo altometer altoun altruist alum alumbloom alumel alumic aluminic aluminide aluminiferous aluminiform aluminium aluminize aluminosilicate aluminothermic alumish alumna alumnal alumnol alunite alupag alure alveary alveated alveola alveolariform alveolate alveolus alvina alvine alycompaine alyssum amabel amability amadavat amadelphous amadou amah amaist amalgamater amalgamator amalings amaltas amandine amanitin amanitine amanori amapa amara amarantaceous amarantite amaranthaceous amarelle amargoso amarin amaryllidaceous amassment amasta amasty amate amated amatingness amative amatorial amatorian amatory amaurosis amawist ambagious ambalam amban ambaree ambary ambassadorial ambassadorship ambassy ambatch ambergris amberiferous amberite amberoid ambicolor ambidexterity ambidextrousness ambigenous ambiparous ambisinister ambitty ambitendency ambitus ambivalence ambiversive amboceptor ambon ambonite ambrette ambrosin ambrosine ambrotype ambsace ambulacral ambulacrum ambulant ambulatio ambulator ambulatorial ambulatorium ambury ambuscade ambusher amchoor amebaean ameban amebiasis amebic amebiform ameboid ameer ameerate amelcorn amelia amenability amendatory amender amends amene amenism amenite amenorrhea ament amentaceous amentia amentulum amerce amercer americium amerindic amerism amesace ametabola ametabole ametabolian ametabolous ametallous ametria ametrometer ametrous amgarn amiability amicability amice amidase amidin amidine amidism amidol amidoxime amidship amido amildar amimia aminase amine amini aminity amitosis amitotic amlong ammanite ammi ammine ammochryse ammocoete ammocoetes ammonal ammonate ammoniac ammoniacal ammoniate ammonifier ammonite ammoniticone ammonitoid ammonium ammonization ammonoid amnemonic amnesia amnestic amnicolist amnion amniote amniotic amoebaean amoeban amoebiasis amoebic amoebiform amoeboid amok amole amomales amomum amorist amoristic amoroso amort amotion ampelideous ampelography ampelopsidin ampelopsis amphibiological amphibology amphibolous amphibrach amphibryous amphicarpic amphictyonic amphictyony amphidisc amphigastrium amphigory amphimacer amphimictic amphimixis amphioxus amphipod amphipoda amphipodan amphipodous amphiprostyle amphirhina amphisarca amphistylar amphithect amphitriaene amphitropous amphopeptone amphora amphoral amphore amphoric ampullar ampullary amreeta amrit amrita amsel amuck amulet amurca amurru amusia amusiveness amutter amuyon amvis amygdal amygdalaceous amygdalase amygdalate amygdalic amygdaliferous amygdaliform amygdalin amygdalitis amygdaloid amygdalolith amylaceous amylamine amylan amylic amylodextrin amylogen amyloid amyloidosis amylolysis amylopectin amylopsin amylose amylum anabo anabohitsite anabong anabranch anacahuita anacanthine anacanthini anacanthous anacara anacard anacardiaceous anacatharsis anaces anacharis anachoret anachorism anachueta anaclastic anacoenosis anacoluthia anacoluthic anaconda anacreontic anacrisis anacrogynae anacrogynous anacrotism anacrusis anaculture anadem anadenia anadicrotic anadiplosis anadrom anadromous anadyomene anaemia anaerobe anaerobion anaerobiosis anaerobiotic anaerobious anagap anagenesis anagenetic anaglyph anaglyphic anaglyphical anaglyptics anaglyptograph anaglyptographic anaglypton anagnorisis anagnost anagoge anagogics anagogist anagogy anagrammatic anagrammatical anagrammatism anagrammatist anagrammatize anagrams anagua anahao anakinesis anakinetic analabos analcime analcite analecta analects analemma analemmatic analepsy analeptic analgen analgia analgic analgesis analgesist analgetic analgia".split(" "));
+
+    let WORD_SET = new Set();
+    let PREFIX_SET = new Set();
+    let WORD_WEIGHT = new Map();
+    let dictionaryReady = false;
+
+    const boardEl = document.getElementById("board"), currentWordEl = document.getElementById("currentWord"), messageEl = document.getElementById("message"), scoreEl = document.getElementById("score"), foundListEl = document.getElementById("foundList"), longestBoxEl = document.getElementById("longestBox"), longestListEl = document.getElementById("longestList"), ringsEl = document.getElementById("rings"), legendEl = document.getElementById("legend"), timeEl = document.getElementById("time"), dictStatusEl = document.getElementById("dictStatus"), endGameBtn = document.getElementById("endGameBtn"), clearBtn = document.getElementById("clearBtn"), pauseBtn = document.getElementById("pauseBtn"), untimedToggle = document.getElementById("untimedToggle"), heatToggle = document.getElementById("heatToggle"), infoBtn = document.getElementById("infoBtn"), infoModal = document.getElementById("infoModal"), closeInfoBtn = document.getElementById("closeInfoBtn"), resultsNewGameBtn = document.getElementById("resultsNewGameBtn");
+
+    let board = [], selected = [], foundWords = new Set(), possibleWords = new Set(), wordStarts = new Map(), startCounts = new Map();
+    let wordSourceCounts = new Map(), frequencyWords = new Set(), mainDictionaryWords = new Set();
+    let dragging = false, secondsLeft = 180, paused = false, untimed = false, timer = null, recentFindTimes = [], gameEnded = false;
+
+    async function loadDictionary() {
+      const allEntries = [];
+      for (const url of WORD_URLS) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) continue;
+          const text = await response.text();
+          allEntries.push(...parseWords(text, url).map((word, rank) => ({ word, url, rank: rank + 1 })));
+        } catch (e) {}
+      }
+      buildDictionary(allEntries);
+      dictionaryReady = true;
+      dictStatusEl.textContent = "Dictionary loaded.";
+      newGame();
+    }
+
+    function parseWords(text, url) {
+      if (url.endsWith(".csv")) {
+        return text.split(String.fromCharCode(10)).slice(1).map(line => line.split(",")[1] || "");
+      }
+      return text.split(new RegExp("\\s+"));
+    }
+
+    function buildDictionary(entries) {
+      WORD_SET = new Set();
+      PREFIX_SET = new Set();
+      WORD_WEIGHT = new Map();
+
+      const seen = new Map();
+      const inFrequency = new Set();
+      const inMain = new Set();
+      const bestFrequencyRank = new Map();
+
+      entries.forEach(entry => {
+        const raw = String(entry.word || "");
+        let word = "";
+        for (const ch of raw.toUpperCase()) {
+          if (ch >= "A" && ch <= "Z") word += ch;
+        }
+
+        if (word.length < 3 || word.length > 13) return;
+        seen.set(word, (seen.get(word) || 0) + 1);
+        if (entry.url === MAIN_DICTIONARY_URL) inMain.add(word);
+        if (FREQUENCY_WORD_URLS.has(entry.url)) {
+          inFrequency.add(word);
+          bestFrequencyRank.set(word, Math.min(bestFrequencyRank.get(word) || Infinity, entry.rank || 99999));
+        }
+      });
+
+      seen.forEach((count, word) => {
+        if (word.length === 3) {
+          const rank = bestFrequencyRank.get(word) || Infinity;
+          if (inFrequency.has(word) && rank <= 12000) WORD_SET.add(word);
+          return;
+        }
+
+        if (inMain.has(word) || inFrequency.has(word) || count >= 2) WORD_SET.add(word);
+      });
+
+      WORD_SET.forEach(word => {
+        const rank = bestFrequencyRank.get(word) || 50000;
+        const frequencyBonus = Math.max(0, (50000 - rank) / 50000);
+        const lengthBonus = Math.min(1.5, Math.max(0, (word.length - 3) * 0.12));
+        WORD_WEIGHT.set(word, 1 + 3 * frequencyBonus + lengthBonus);
+        for (let i = 1; i <= word.length; i++) {
+          PREFIX_SET.add(word.slice(0, i));
+        }
+      });
+    }
+
+    function shuffle(array) { const copy = [...array]; for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+    function rollBoardOnce() { return shuffle(DICE).map((die, i) => { const letter = die[Math.floor(Math.random() * die.length)]; return { id: i, letter: letter === "Q" ? "QU" : letter, row: Math.floor(i / 4), col: i % 4 }; }); }
+    function rollBetterBoard() { let best = null, bestScore = -1; for (let k = 0; k < 55; k++) { board = rollBoardOnce(); findPossibleWords(); const longBonus = [...possibleWords].filter(w => w.length >= 5).length; const nounish = [...possibleWords].filter(w => looksNounLike(w)).length; const boardScore = possibleWords.size + longBonus * 1.5 + nounish * 3; if (boardScore > bestScore) { bestScore = boardScore; best = board.map(x => ({...x})); } } board = best; findPossibleWords(); }
+
+    function looksNounLike(word) {
+      return word.length >= 4 && new RegExp("(ER|OR|ION|MENT|NESS|TY|AGE|SHIP|WOOD|HOUSE|ROOM|TIN|MOON|STONE|TREE|WATER|BIRD|FISH|CAT|DOG)$").test(word);
+    }
+
+    function renderBoard() {
+      recomputeRemainingHeat();
+      boardEl.innerHTML = "";
+      const maxHeat = Math.max(1, ...startCounts.values());
+      board.forEach(cell => {
+        const tile = document.createElement("button"); tile.className = "tile"; tile.textContent = cell.letter === "QU" ? "Qu" : cell.letter; tile.dataset.id = cell.id;
+        const heat = startCounts.get(cell.id) || 0; const normalized = heat / maxHeat;
+        tile.style.setProperty("--heat", normalized.toFixed(2)); tile.title = heat + " remaining words start here";
+        if (normalized > .58) tile.classList.add("high-heat"); boardEl.appendChild(tile);
+      });
+      updateSelectedStyles(); renderHeatMode();
+    }
+    function renderHeatMode() { boardEl.classList.toggle("heat-on", heatToggle.checked); legendEl.style.display = heatToggle.checked ? "block" : "none"; }
+    function getCurrentWord() { return selected.map(cell => cell.letter).join("").toUpperCase(); }
+    function updateSelectedStyles() { document.querySelectorAll(".tile").forEach(tile => { const id = Number(tile.dataset.id); tile.classList.toggle("selected", selected.some(cell => cell.id === id)); }); currentWordEl.textContent = getCurrentWord() || "Drag letters"; }
+    function areAdjacent(a, b) { return Math.abs(a.row - b.row) <= 1 && Math.abs(a.col - b.col) <= 1 && a.id !== b.id; }
+    function neighbors(cell) { return board.filter(other => areAdjacent(cell, other)); }
+
+    function findPossibleWords() {
+      possibleWords = new Set(); wordStarts = new Map();
+      function dfs(cell, used, word, startId) {
+        const nextWord = word + cell.letter;
+        if (!PREFIX_SET.has(nextWord)) return;
+        if (WORD_SET.has(nextWord) && !possibleWords.has(nextWord)) { possibleWords.add(nextWord); wordStarts.set(nextWord, startId); }
+        used.add(cell.id);
+        for (const next of neighbors(cell)) if (!used.has(next.id)) dfs(next, used, nextWord, startId);
+        used.delete(cell.id);
+      }
+      board.forEach(cell => dfs(cell, new Set(), "", cell.id));
+      recomputeRemainingHeat();
+    }
+
+    function recomputeRemainingHeat() {
+      startCounts = new Map(board.map(cell => [cell.id, 0]));
+      possibleWords.forEach(word => { if (!foundWords.has(word)) { const startId = wordStarts.get(word); startCounts.set(startId, (startCounts.get(startId) || 0) + 1); } });
+    }
+
+    function tryAddCell(cell) {
+      if (gameEnded || (!untimed && secondsLeft <= 0) || paused || !dictionaryReady) return;
+      const existingIndex = selected.findIndex(x => x.id === cell.id);
+      if (existingIndex !== -1) { if (existingIndex === selected.length - 2) { selected.pop(); updateSelectedStyles(); } return; }
+      if (selected.length === 0 || areAdjacent(selected[selected.length - 1], cell)) { selected.push(cell); updateSelectedStyles(); }
+    }
+
+    function cellFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el || !el.classList.contains("tile")) return null;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      const dx = Math.abs(x - cx) / rect.width, dy = Math.abs(y - cy) / rect.height;
+      if (Math.max(dx, dy) > 0.34) return null;
+      return board[Number(el.dataset.id)];
+    }
+
+    function addFoundWord(word) { const pill = document.createElement("div"); pill.className = "word-pill"; pill.textContent = word; foundListEl.prepend(pill); }
+    function clearSelection() { selected = []; updateSelectedStyles(); }
+    function showMessage(text) { messageEl.textContent = text; clearTimeout(showMessage.timeout); showMessage.timeout = setTimeout(() => { messageEl.textContent = ""; }, 1800); }
+    function updateStats() {
+      const totalWeight = [...possibleWords].reduce((sum, word) => sum + (WORD_WEIGHT.get(word) || 1), 0);
+      const foundWeight = [...foundWords].reduce((sum, word) => sum + (WORD_WEIGHT.get(word) || 1), 0);
+      const pct = totalWeight ? Math.round((foundWeight / totalWeight) * 100) : 0;
+      scoreEl.textContent = pct + "%";
+    }
+    function lengthBucket(word) { return word.length >= 8 ? "8+" : String(word.length); }
+
+    function flashTiles(kind) {
+      const cls = kind === "good" ? "flash-good" : kind === "duplicate" ? "flash-duplicate" : "flash-bad";
+      selected.forEach(cell => { const tile = document.querySelector('.tile[data-id="' + cell.id + '"]'); if (tile) tile.classList.add(cls); });
+      setTimeout(() => { document.querySelectorAll(".tile").forEach(tile => tile.classList.remove("flash-good", "flash-duplicate", "flash-bad")); }, 420);
+    }
+    function triggerSpecialEffectIfNeeded() { const now = Date.now(); recentFindTimes = recentFindTimes.filter(t => now - t <= 10000); recentFindTimes.push(now); if (recentFindTimes.length >= 4) { boardEl.classList.remove("sprint"); void boardEl.offsetWidth; boardEl.classList.add("sprint"); showMessage("Special effect!"); recentFindTimes = []; } }
+
+    function submitWord() {
+      const word = getCurrentWord(); if (!word) return;
+      if (word.length < 3 || !WORD_SET.has(word)) { flashTiles("bad"); showMessage("Not in the dictionary."); }
+      else if (!possibleWords.has(word)) { flashTiles("bad"); showMessage("Valid word, but not on this board."); }
+      else if (foundWords.has(word)) { flashTiles("duplicate"); showMessage("Already found that one."); }
+      else {
+        foundWords.add(word);
+        addFoundWord(word);
+        updateStats();
+        renderRings();
+        flashTiles("good");
+        triggerSpecialEffectIfNeeded();
+        if (recentFindTimes.length !== 0) showMessage("Nice: " + word);
+        setTimeout(() => { renderBoard(); clearSelection(); }, 520);
+        return;
+      }
+      setTimeout(clearSelection, 420);
+    }
+
+    function renderRings() {
+      const buckets = ["3", "4", "5", "6", "7", "8+"]; ringsEl.innerHTML = "";
+      buckets.forEach(bucket => { const total = [...possibleWords].filter(w => lengthBucket(w) === bucket).length; const found = [...foundWords].filter(w => lengthBucket(w) === bucket).length; const pct = total ? Math.round((found / total) * 360) : 0; const card = document.createElement("div"); card.className = "ring-card"; card.innerHTML = '<div class="ring" style="--pct: ' + pct + 'deg" data-count="' + found + '/' + total + '"></div><div>' + bucket + ' letters</div>'; ringsEl.appendChild(card); });
+    }
+    function updateTime() { if (untimed) { timeEl.textContent = "∞"; return; } const min = Math.floor(secondsLeft / 60); const sec = String(secondsLeft % 60).padStart(2, "0"); timeEl.textContent = min + ":" + sec; }
+    function startTimer() { clearInterval(timer); timer = setInterval(() => { if (untimed || paused) return; secondsLeft--; if (secondsLeft <= 0) { secondsLeft = 0; clearInterval(timer); clearSelection(); endGame(); } updateTime(); }, 1000); }
+
+    function endGame() {
+      if (gameEnded) return;
+      gameEnded = true;
+      clearInterval(timer);
+      clearSelection();
+      endGameBtn.style.display = "none";
+      clearBtn.style.display = "none";
+      pauseBtn.style.display = "none";
+      showMessage("Game over! Found " + foundWords.size + " of " + possibleWords.size + " words.");
+      showLongestWords();
+    }
+
+    function showLongestWords() {
+      longestListEl.innerHTML = "";
+      const words = [...possibleWords].sort((a, b) => b.length - a.length || a.localeCompare(b));
+      const maxLen = words.length ? words[0].length : 0;
+      const longest = words.filter(word => word.length === maxLen);
+      if (!longest.length) return;
+      longest.forEach(word => {
+        const pill = document.createElement("div");
+        pill.className = "word-pill";
+        pill.textContent = word;
+        longestListEl.appendChild(pill);
+      });
+      longestBoxEl.classList.add("show");
+    }
+
+    function newGame() {
+      if (!dictionaryReady) return;
+      untimed = untimedToggle.checked; foundWords = new Set(); selected = []; recentFindTimes = []; secondsLeft = 180; paused = false; gameEnded = false;
+      rollBetterBoard(); renderBoard(); foundListEl.innerHTML = ""; longestListEl.innerHTML = ""; longestBoxEl.classList.remove("show"); endGameBtn.style.display = "inline-flex"; clearBtn.style.display = "inline-flex"; pauseBtn.textContent = "Pause"; pauseBtn.style.display = untimed ? "none" : "inline-flex"; updateStats(); updateTime(); renderRings(); showMessage("New board!"); startTimer();
+    }
+
+    boardEl.addEventListener("pointerdown", event => { const cell = cellFromPoint(event.clientX, event.clientY); if (!cell) return; dragging = true; boardEl.setPointerCapture(event.pointerId); selected = []; tryAddCell(cell); });
+    boardEl.addEventListener("pointermove", event => { if (!dragging) return; const cell = cellFromPoint(event.clientX, event.clientY); if (cell) tryAddCell(cell); });
+    boardEl.addEventListener("pointerup", () => { if (!dragging) return; dragging = false; submitWord(); });
+    boardEl.addEventListener("pointercancel", () => { dragging = false; clearSelection(); });
+    endGameBtn.addEventListener("click", endGame); resultsNewGameBtn.addEventListener("click", newGame); clearBtn.addEventListener("click", clearSelection);
+    pauseBtn.addEventListener("click", () => { paused = !paused; pauseBtn.textContent = paused ? "Resume" : "Pause"; showMessage(paused ? "Paused" : "Resumed"); });
+    untimedToggle.addEventListener("change", newGame); heatToggle.addEventListener("change", renderHeatMode);
+    infoBtn.addEventListener("click", () => infoModal.classList.add("show"));
+    closeInfoBtn.addEventListener("click", () => infoModal.classList.remove("show"));
+    infoModal.addEventListener("click", event => { if (event.target === infoModal) infoModal.classList.remove("show"); });
+    loadDictionary();
+  </script>
+</body>
+</html>

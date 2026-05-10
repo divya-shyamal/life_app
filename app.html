@@ -690,6 +690,14 @@
       background: #ffe8f1;
     }
 
+
+    .counter-small {
+      font-size: 12px;
+      opacity: 0.7;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+
     .footer {
       margin-top: 22px;
       color: var(--muted);
@@ -938,10 +946,14 @@ function pluralize(count, singular, plural = singular + 's'){
 }
 
 function foodCountLabel(key, count){
-  if (key === 'healthyMeal') return pluralize(count, 'healthy meal');
-  if (key === 'healthySnack') return pluralize(count, 'healthy snack');
-  if (key === 'junkFood') return pluralize(count, 'bad choice', 'bad choices');
-  return String(count);
+  let label = '';
+
+  if (key === 'healthyMeal') label = count === 1 ? 'healthy meal' : 'healthy meals';
+  else if (key === 'healthySnack') label = count === 1 ? 'healthy snack' : 'healthy snacks';
+  else if (key === 'junkFood') label = count === 1 ? 'bad choice' : 'bad choices';
+  else return String(count);
+
+  return `${count} <span class="counter-small">${label}</span>`;
 }
 
 function updateRunningTimer(key){
@@ -1129,14 +1141,14 @@ function addManualMinutes(key, isSocial = false){
   const input = document.getElementById(`manual-${key}`);
   if (!input) return;
 
-  const minutes = Number(input.value);
+  const minutes = parseInt(input.value, 10);
   if (!Number.isFinite(minutes) || minutes <= 0) {
     input.value = '';
     return;
   }
 
   updateRunningTimer(key);
-  state.timers[key].seconds += Math.round(minutes * 60);
+  state.timers[key].seconds += minutes * 60;
 
   if (isSocial) {
     state.timers[key].opens = (state.timers[key].opens || 0) + 1;
@@ -1282,7 +1294,7 @@ function renderProductive(){
       </div>
 
       <div class="manual-add-row">
-        <input id="manual-${key}" type="number" min="0" step="1" placeholder="Forgot? minutes" />
+        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="Forgot? minutes" />
         <button onclick="addManualMinutes('${key}')">+ add</button>
       </div>
     `;
@@ -1325,7 +1337,7 @@ function renderSocial(){
       </div>
 
       <div class="manual-add-row">
-        <input id="manual-${key}" type="number" min="0" step="1" placeholder="Forgot? minutes" />
+        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="Forgot? minutes" />
         <button onclick="addManualMinutes('${key}', true)">+ add</button>
       </div>
     `;
@@ -1506,13 +1518,40 @@ function renderHistory(){
   `).join('');
 }
 
+function getManualInputValues(){
+  const values = {};
+  document.querySelectorAll('[id^="manual-"]').forEach(input => {
+    values[input.id] = input.value;
+  });
+  return values;
+}
+
+function restoreManualInputValues(values){
+  Object.entries(values).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input && value !== '') input.value = value;
+  });
+}
+
 function render(){
-  renderProductive();
-  renderSocial();
+  const active = document.activeElement;
+  const typingInManualInput = active && active.id && active.id.startsWith('manual-');
+
+  const manualInputValues = getManualInputValues();
+
+  if (!typingInManualInput) {
+    renderProductive();
+    renderSocial();
+  }
+
   renderFood();
   renderHabits();
   renderStats();
   renderHistory();
+
+  if (!typingInManualInput) {
+    restoreManualInputValues(manualInputValues);
+  }
 }
 
 setInterval(() => {

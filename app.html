@@ -775,7 +775,7 @@
       </div>
 
       <div class="ring-card">
-        <div class="ring" id="habitRing"><div class="ring-inner"><div><div class="ring-value" id="habitRingValue">0/9</div><div class="ring-caption">habits</div></div></div></div>
+        <div class="ring" id="habitRing"><div class="ring-inner"><div><div class="ring-value" id="habitRingValue">0/8</div><div class="ring-caption">habits</div></div></div></div>
         <div>
           <div class="ring-title">🌱 Daily Habits</div>
           <div class="ring-note" id="habitRingNote">A simple progress ring for the habits that protect the day.</div>
@@ -877,23 +877,27 @@ const defaultState = {
     wakeBefore10: { label:'🌤️ Woke before 10 AM', status:null, note:'A clean start counts.' },
     sleepBefore1: { label:'🌙 Slept before 1 AM', status:null, note:'Protect tomorrow before it starts.' },
     sleepEightNine: { label:'😴 Slept 8–9 hours', status:null, note:'Enough sleep to actually be a person.' },
-    noPhoneBedWake: { label:'📵 No phone at wake/bed', status:null, note:'Protect the bookends.' },
-    poopNoPhone: { label:'🚽 Pooped without phone', status:null, note:'A forgotten ancient human skill.' },
+    noPhoneBedWake: { label:'📵 No scrolling at wake/bed', status:null, note:'Protect the bookends.' },
+    poopNoPhone: { label:'🚽 Bathroom without phone', status:null, note:'A forgotten ancient human skill.' },
     exercise: { label:'🏃 Exercised', status:null, note:'Walk, gym, yoga, sport.' },
     waterCup: { label:'💧 Water', count:0, note:'Tiny hydration wins add up.' },
     outside: { label:'🌳 Went outside', count:0, note:'Light and air reset.' },
+    cookedSomething: { label:'🍳 Cooked something', count:0, note:'Future-you appreciates edible effort.' },
+    journaling: { label:'📓 Journaled', count:0, note:'A few honest sentences counts.' },
+    meditation: { label:'🧘 Meditation', count:0, note:'20 minutes with nothing but your thoughts.' },
     tidySpace: { label:'🧺 Tidied space', count:0, note:'Cleaning, dishes, laundry all count.' }
   }
 };
 
 let state = loadState();
 const productiveKeys = ['work','reading','learning','projects','puzzles'];
+const productiveRingKeys = ['work','learning'];
 const socialKeys = ['phoneUnlock','instagram','linkedin','twitter','otherSocial'];
 
 const habitCategories = [
   { title: 'Sleep + phone hygiene', keys: ['wakeBefore10','sleepBefore1','sleepEightNine','noPhoneBedWake','poopNoPhone'] },
-  { title: 'Body basics', keys: ['exercise','waterCup','outside'] },
-  { title: 'Environment', keys: ['tidySpace'] }
+  { title: 'Body basics', keys: ['exercise','waterCup','outside','cookedSomething'] },
+  { title: 'Mind + environment', keys: ['journaling','meditation','tidySpace'] }
 ];
 
 function loadState(){
@@ -927,6 +931,17 @@ function formatTime(seconds){
   const m = Math.floor((seconds%3600)/60);
   const s = seconds%60;
   return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function pluralize(count, singular, plural = singular + 's'){
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function foodCountLabel(key, count){
+  if (key === 'healthyMeal') return pluralize(count, 'healthy meal');
+  if (key === 'healthySnack') return pluralize(count, 'healthy snack');
+  if (key === 'junkFood') return pluralize(count, 'bad choice', 'bad choices');
+  return String(count);
 }
 
 function updateRunningTimer(key){
@@ -1133,7 +1148,7 @@ function addManualMinutes(key, isSocial = false){
 }
 
 function snapshotCurrentDay(){
-  const productiveSeconds = productiveKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
+  const productiveSeconds = productiveRingKeys.reduce((sum, key) => sum + state.timers[key].seconds, 0);
   const socialSeconds = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
   const socialOpens = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.opens || 0), 0);
 
@@ -1335,7 +1350,7 @@ function renderFood(){
       <button class="${item.good ? 'good-button' : 'bad-button'}" onclick="incrementFood('${key}')">
         ${item.good ? '🌸 Log good choice' : '🧟 I did this'}
       </button>
-      <div class="counter">${item.count}</div>
+      <div class="counter">${foodCountLabel(key, item.count)}</div>
     `;
 
     c.appendChild(d);
@@ -1417,7 +1432,7 @@ function renderStats(){
   const productiveProgress = snap.productiveSeconds / productiveGoal;
   const socialProgress = snap.socialSeconds / socialCap;
   const healthyEatingProgress = Math.max(0, Math.min(1, snap.healthyEatingScore / 3));
-  const habitProgress = Math.max(0, Math.min(1, snap.habitScore / 9));
+  const habitProgress = Math.max(0, Math.min(1, snap.habitScore / 8));
 
   setRing('productiveRing', productiveProgress, colorMixRedGreen(productiveProgress));
   setRing('socialRing', socialProgress, colorMixGreenRed(socialProgress));
@@ -1427,7 +1442,7 @@ function renderStats(){
   document.getElementById('productiveRingValue').textContent = Math.min(100, Math.floor(productiveProgress * 100)) + '%';
   document.getElementById('socialRingValue').textContent = Math.min(100, Math.floor(socialProgress * 100)) + '%';
   document.getElementById('healthyEatingRingValue').textContent = `${snap.healthyEatingScore}/3`;
-  document.getElementById('habitRingValue').textContent = `${snap.habitScore}/9`;
+  document.getElementById('habitRingValue').textContent = `${Math.min(snap.habitScore, 8)}/8`;
 
   const productiveLeft = Math.max(0, productiveGoal - snap.productiveSeconds);
   const socialLeft = Math.max(0, socialCap - snap.socialSeconds);
@@ -1442,7 +1457,7 @@ function renderStats(){
     snap.healthyEatingScore >= 3 ? 'Food ring complete. Helpful choices carried the day.' : `Need ${3 - Math.max(0, snap.healthyEatingScore)} more helpful food choice${3 - Math.max(0, snap.healthyEatingScore) === 1 ? '' : 's'} for today.`;
 
   document.getElementById('habitRingNote').textContent =
-    snap.habitScore >= 9 ? 'Habit ring complete. Tiny systems did their job.' : `${snap.habitScore}/9 daily habits protected.`;
+    snap.habitScore >= 8 ? 'Habit ring complete. Tiny systems did their job.' : `${Math.min(snap.habitScore, 8)}/8 daily habits protected.`;
 
   renderBrain(snap.socialSeconds);
 
@@ -1486,7 +1501,7 @@ function renderHistory(){
       <span>Focus ${formatTime(day.productiveSeconds)}</span>
       <span>Scroll ${formatTime(day.socialSeconds)}</span>
       <span>Food ${day.healthyEatingScore ?? 0}/3</span>
-      <span>Habits ${day.habitScore ?? 0}/9</span>
+      <span>Habits ${Math.min(day.habitScore ?? 0, 8)}/8</span>
     </div>
   `).join('');
 }

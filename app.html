@@ -651,6 +651,45 @@
       margin-bottom: 8px;
     }
 
+
+    .manual-add-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .manual-add-row input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-size: 13px;
+      color: var(--ink);
+      background: white;
+      outline: none;
+    }
+
+    .manual-add-row input:focus {
+      border-color: #d44d78;
+      box-shadow: 0 0 0 3px rgba(212, 77, 120, 0.12);
+    }
+
+    .manual-add-row button {
+      border-radius: 12px;
+      padding: 9px 11px;
+      font-size: 12px;
+      font-weight: 900;
+      background: #fff;
+      border: 1px solid #e3b9cb;
+      color: #6c334b;
+      white-space: nowrap;
+    }
+
+    .manual-add-row button:hover {
+      background: #ffe8f1;
+    }
+
     .footer {
       margin-top: 22px;
       color: var(--muted);
@@ -1071,6 +1110,28 @@ function setHabitStatus(key, status){
   save();
 }
 
+function addManualMinutes(key, isSocial = false){
+  const input = document.getElementById(`manual-${key}`);
+  if (!input) return;
+
+  const minutes = Number(input.value);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    input.value = '';
+    return;
+  }
+
+  updateRunningTimer(key);
+  state.timers[key].seconds += Math.round(minutes * 60);
+
+  if (isSocial) {
+    state.timers[key].opens = (state.timers[key].opens || 0) + 1;
+  }
+
+  input.value = '';
+  render();
+  save();
+}
+
 function snapshotCurrentDay(){
   const productiveSeconds = productiveKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
   const socialSeconds = socialKeys.reduce((sum,key) => sum + (state.timers[key]?.seconds || 0), 0);
@@ -1204,6 +1265,11 @@ function renderProductive(){
           ${t.running ? '🛑 Stop' : '✅ Start'}
         </button>
       </div>
+
+      <div class="manual-add-row">
+        <input id="manual-${key}" type="number" min="0" step="1" placeholder="Forgot? minutes" />
+        <button onclick="addManualMinutes('${key}')">+ add</button>
+      </div>
     `;
 
     c.appendChild(d);
@@ -1241,6 +1307,11 @@ function renderSocial(){
         <button class="${t.running ? 'closed-btn' : 'ugly-btn'}" onclick="socialButton('${key}')">
           ${t.running ? '😊 I closed this' : '🧟 I opened this'}
         </button>
+      </div>
+
+      <div class="manual-add-row">
+        <input id="manual-${key}" type="number" min="0" step="1" placeholder="Forgot? minutes" />
+        <button onclick="addManualMinutes('${key}', true)">+ add</button>
       </div>
     `;
 

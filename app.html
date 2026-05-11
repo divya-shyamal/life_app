@@ -893,6 +893,7 @@ const defaultState = {
     cookedSomething: { label:'🍳 Cooked something', count:0, note:'Future-you appreciates edible effort.' },
     journaling: { label:'📓 Journaled', count:0, note:'A few honest sentences counts.' },
     meditation: { label:'🧘 Meditation', count:0, note:'20 minutes with nothing but your thoughts.' },
+    crafts: { label:'🧶 Crafts', count:0, note:'Make something with your hands.' },
     tidySpace: { label:'🧺 Tidied space', count:0, note:'Cleaning, dishes, laundry all count.' }
   }
 };
@@ -905,7 +906,7 @@ const socialKeys = ['phoneUnlock','instagram','linkedin','twitter','otherSocial'
 const habitCategories = [
   { title: 'Sleep + phone hygiene', keys: ['wakeBefore10','sleepBefore1','sleepEightNine','noPhoneBedWake','poopNoPhone'] },
   { title: 'Body basics', keys: ['exercise','waterCup','outside','cookedSomething'] },
-  { title: 'Mind + environment', keys: ['journaling','meditation','tidySpace'] }
+  { title: 'Mind + environment', keys: ['journaling','meditation','crafts','tidySpace'] }
 ];
 
 function loadState(){
@@ -1294,7 +1295,7 @@ function renderProductive(){
       </div>
 
       <div class="manual-add-row">
-        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="Forgot? minutes" />
+        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="minutes" />
         <button onclick="addManualMinutes('${key}')">+ add</button>
       </div>
     `;
@@ -1337,7 +1338,7 @@ function renderSocial(){
       </div>
 
       <div class="manual-add-row">
-        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="Forgot? minutes" />
+        <input id="manual-${key}" type="text" inputmode="numeric" placeholder="minutes" />
         <button onclick="addManualMinutes('${key}', true)">+ add</button>
       </div>
     `;

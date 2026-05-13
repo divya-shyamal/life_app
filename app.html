@@ -1143,7 +1143,7 @@ function addManualMinutes(key, isSocial = false){
   if (!input) return;
 
   const minutes = parseInt(input.value, 10);
-  if (!Number.isFinite(minutes) || minutes <= 0) {
+  if (!Number.isFinite(minutes)) {
     input.value = '';
     return;
   }
